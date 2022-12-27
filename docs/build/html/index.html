@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to PCAT-DE’s documentation! &mdash; PCAT-DE 0.1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API" href="api.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="#" class="icon icon-home"> PCAT-DE
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- <p class="caption" role="heading"><span class="caption-text">API</span></p> -->
+<ul>
+
+<li class="toctree-l1"><a class="reference internal" href="#installation">Installation</a></li>
+<!-- <li class="toctree-l1"><a class="reference internal" href="pcat-lit.html">Existing work on probabilistic cataloging</a></li> -->
+<!-- <li class="toctree-l1"><a class="reference internal" href="pcat-lit.html">Implementation details</a></li> -->
+<!-- <li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li> -->
+
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">PCAT-DE</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home"></a> &raquo;</li>
+      <li>Welcome to PCAT-DE’s documentation!</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="welcome-to-pcat-de-s-documentation">
+<h1>Welcome to PCAT-DE’s documentation!<a class="headerlink" href="#welcome-to-pcat-de-s-documentation" title="Permalink to this headline"></a></h1>
+<p>This readthedocs page describes the software PCAT-DE, or <strong>P</strong>robabilistic <strong>CAT</strong>aloging in the presence of <strong>D</strong>iffuse <strong>E</strong>mission. PCAT-DE was first used in <a class="reference external" href="https://arxiv.org/abs/2110.13932">Butler &amp; Feder (2021)</a>, while PCAT-DE is tested in more detail in Feder+(2022).</p>
+<p>
+The advantage of PCAT-DE is its flexibility: any spatial-spectral template may be used in principle and fit alongside a point source population, where the number of sources is unknown. This allows one to probe the <strong>transdimensional covariance</strong> between a given signal and the union of point source models with varying Nsrc, otherwise referred to as a <strong>metamodel</strong>.
+</p>
+<p>The use applications for PCAT-DE so far include:</p>
+<ul>
+<li> Detection and measurement of point sources in the presence of diffuse galactic cirrus</li>
+<li> Measurement of spatially extended Sunyaev-Zel'dovich effect in the presence of cosmic infrared background (CIB) galaxies and diffuse galactic cirrus.</li>
+</ul>
+<!-- <div class="toctree-wrapper compound"> -->
+</div>
+<!-- <p class="caption" role="heading"><span class="caption-text"></span></p> -->
+
+<!-- <ul> -->
+<!-- <li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li> -->
+<!-- </ul> -->
+<!-- </div> -->
+<br>
+<div class="section" id="installation">
+<span id="sectinst"></span><h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>To install PCAT-DE you can use pip or download the latest version on Github and run </p>
+<div class="code highlight-default"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">install</span>
+</pre></div>
+</div>
+
+<div class="section" id="previous-work">
+<span id="sectinst"></span><h2>Existing work on probabilistic cataloging<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>This work builds on a long list of existing implementations and extensions based on the framework of probabilistic cataloging. All of these methods build on <strong>transdimensional inference</strong>, in which the number of model components is inferred simultaneously with the properties of the components. This list is almost certaintly non-exhaustive:</p>
+<ul>
+<li>Detection of multiple exoplanet radial velocity signals in the presence of stellar activity (<a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2015MNRAS.448.3206B/abstract">Brewer &amp; Donovan (2015)</a>) </li>
+<li>Point source photometry in crowded stellar fields  (<a class="reference external" href="https://iopscience.iop.org/article/10.1088/0004-6256/146/1/7">Brewer et al. (2015)</a>, 
+  <a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-3881/aa8565/pdf">Portillo et al. (2017)</a>, <a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-3881/ab74cf/meta">Feder et al. (2020)</a>)
+</li>
+</li>
+<li>Inference of dark matter sub-halo mass functions in strong gravitationally lensed systems (<a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-4357/aaaa1e/pdf">Daylan et al. (2017)</a>)</li>
+</li>
+<li>Constraints on number counts of sub-threshold point source populations in Fermi-LAT data (<a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-4357/aa679e/meta">Daylan et al. (2017)</a>)</li>
+<li> Measurement of spatially extended Sunyaev-Zel'dovich effect in the presence of cosmic infrared background (CIB) galaxies and diffuse galactic cirrus.
+(<a class="reference external" href="https://arxiv.org/abs/2110.13932">Butler &amp; Feder (2021)</a>)
+  </li>
+
+</ul>
+
+
+</div>
+
+<div class="section" id="implementation">
+<span id="sectinst"></span><h2>Implementation details<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>
+The code is structured as follows. First, the <code class="docutils literal"><span class="pre">pcat_main()</span></code> class is instantiated, using a combination of user-provided parameters and parameters stored in configuration files. Each time PCAT is run, a parameter file is saved in pickled and readable forms (params.npz, params_read.txt) within the results folder.
+
+There are many hyperparameters that can be tuned, which are specified in config.py, however in practice many of these do not need to be modified. They can be broken down into various groups:
+<ul>
+<li><b>Data configuration parameters</b>. This includes the location of the files (can be input through data_path or combination of <code class="docutils literal"><span class="pre">im_fpath</span></code> and <code class="docutils literal"><span class="pre">err_fpath</span></code>) and details of the noise model implementation. These should be the names of FITS files (with <code class="docutils literal"><span class="pre">.fits</span></code> extensions). The data can be fed in as either a single observed map (e.g., <code class="docutils literal"><span class="pre">image_extnames=['SIGNAL']</span></code>), or as a sum of several maps, (e.g., <code class="docutils literal"><span class="pre">image_extnames=[{signal_noiseless}, {noise}]</span></code>), where <span class="pre">{signal_noiseless}</span></code> and <span class="pre">{noise}</span></code> should be customized to the saved FITS image cards. Additional Gaussian noise can be added by setting  <code class="docutils literal"><span class="pre">add_noise</span></code> to True and either specifying a constant noise level (<code class="docutils literal"><span class="pre">scalar_noise_sigma</span></code>) or using the uncertainty map (<code class="docutils literal"><span class="pre">add_noise=True</span></code> and <code class="docutils literal"><span class="pre">use_uncertainty_map=True</span></code>). The details of the PSF can be specified in terms of a beam full width at half maximum (FWHM, <code class="docutils literal"><span class="pre">psf_fwhm</span></code>) provided in pixel units (this assumes a Gaussian beam), or as a generic PSF postage stamp (<code class="docutils literal"><span class="pre">use_uncertainty_map</span></code>=True). When an empirical PSF estimate is available it can be fed into PCAT using the <code class="docutils literal"><span class="pre">psf_postage_stamp</span></code> keyword. If one wants to run PCAT on a masked version of the image, the most straightforward way to do this is to set all pixels in the uncertainty map to zero/np.inf/np.nan. PCAT will have predicted model values for these pixels, however they are zero-weighted in the likelihood evaluation so this can be thought of as a type of inpainting.
+</li>
+
+<li> <b>Map pre-processing parameters</b></li>
+<li> <b>PCAT sampler parameters/model hyperparameters.</b> The number of samples is set by <code class="docutils literal"><span class="pre">nsamp</span></code> -- by default the chains are thinned by a factor of <code class="docutils literal"><span class="pre">nloop=1000</span></code>, so a run with <code class="docutils literal"><span class="pre">nsamp=4000</span></code> is really <span class="math">4 x 10^6</span> model evaluations. For computational efficiency, it is recommended to set a <code class="docutils literal"><span class="pre">max_nsrc</span></code> for the model. The maximum should be sufficiently far from the bulk of the posterior on Nsrc. Oftentimes if the number of sources is diverging it means something is not correct in the data parsing or the astrometric calibration.</li>
+<li> Hyperparameters describing model for constant background/mean normalization of maps ("Background Parameters"), any fixed spatial templates ("Template Parameters") and the Fourier component templates ("Fourier Component Parameters").</li>
+<li>Run time diagnostics/posterior plot details.</li>
+<li>Optional parameters for computing condensed catalog from posterior samples ("Condensed Catalog").</li>
+</ul>
+</p>
+<p>
+These parameters can be directly modified in the configuration file, or passed as keyword arguments to the lion class instantiation.
+</p>
+
+
+<p>
+Model proposals are called many times within the PCAT chains. These are included in the <code class="docutils literal"><span class="pre">Proposal()</span></code> class and are drawn from according to the model components and proposal weights ("moveweights").
+</p>
+
+<span id="sectinst"></span><h3>Data parsing<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h3>
+<p>
+One important (and error prone) step in running PCAT is the proper parsing of maps and other data products to PCAT. Because PCAT builds a generative model for the observed data, it typically needs:
+</p>
+<ul>
+<li>The observed maps</li>
+<li>A model for the point spread function (PSF) of the telescope optics and the pixel function</li>
+<li>A noise model image for each map</li>
+<li>If running on several maps (e.g., multiband data), a consistent astrometric reference frame across images (along with consistent trimming of maps)</li>
+</ul>
+
+<p>
+In PCAT-DE, two sets of diagnostics are included to ensure the data products are parsed correctly. To validate the astrometry, PCAT has a test module <code class="docutils literal"><span class="pre">validate_astrometry()</span></code>which projects a grid of points across each of the images. The second shows the data as they are parsed in and is used when <code class="docutils literal"><span class="pre">show_input_maps</span></code> is set to True. To plot these for an individual run in real time you want to set <code class="docutils literal"><span class="pre">matplotlib.colors('tkAGG')</span></code>, otherwise they will be saved as files in the results folder (specified by <code class="docutils literal"><span class="pre">config.result_path</span></code>). 
+</p>
+<p>
+
+</p>
+<span id="sectexample"></span><h3>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h3>
+<p>
+Example scripts can be found in the repository under <code class="docutils literal"><span class="pre">example1.py</span></code>. Some code implementing artificial star tests can be found in the script <code class="docutils literal"><span class="pre">artificial_star_test.py</span></code>
+</p>
+
+<span id="sectinst"></span><h3>Posteriors and Diagnostics<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h3>
+<p>
+Verifying the proper convergence of PCAT can be done by inspecting the posteriors and other diagnostics derived from posterior samples.
+<ul>
+<li>The chi squared of the samples and the reduced chi squared statistics.</li>
+<li>Pixel-wise residual maps</li>
+<li>Number of sources. Does the posterior on Nsrc reside well within the range of nmin/nmax?</li>
+<li>If running on several maps (e.g., multiband data), a consistent astrometric reference frame across images (along with consistent trimming of maps)</li>
+<li>Acceptance fractions for different proposals. If these are too low, it may suggest the model has not converged. If they are too high, it may suggest the proposal kernels are too narrow, such the delta log posterior between models is close to zero.</li>
+</ul>
+</p>
+
+</div>
+
+</section>
+
+
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="api.html" class="btn btn-neutral float-right" title="API" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Richard Feder.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
