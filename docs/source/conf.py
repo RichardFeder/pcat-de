@@ -35,7 +35,6 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.duration',
     'sphinx.ext.autosummary',
-    'numpydoc',
     'nbsphinx',
 ]
 
