@@ -14,12 +14,14 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="API" href="api.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -37,16 +39,26 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- <p class="caption" role="heading"><span class="caption-text">API</span></p> -->
-<ul>
-
-<li class="toctree-l1"><a class="reference internal" href="#installation">Installation</a></li>
-<!-- <li class="toctree-l1"><a class="reference internal" href="pcat-lit.html">Existing work on probabilistic cataloging</a></li> -->
-<!-- <li class="toctree-l1"><a class="reference internal" href="pcat-lit.html">Implementation details</a></li> -->
-<!-- <li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li> -->
-
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Welcome to PCAT-DE’s documentation!</a><ul>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#existing-work-on-probabilistic-cataloging">Existing work on probabilistic cataloging</a></li>
+<li><a class="reference internal" href="#implementation-details">Implementation details</a><ul>
+<li><a class="reference internal" href="#data-configuration-parameters">Data configuration parameters</a></li>
+<li><a class="reference internal" href="#map-pre-processing-parameters">Map pre-processing parameters</a></li>
+<li><a class="reference internal" href="#pcat-sampler-parameters-model-hyperparameters">PCAT sampler parameters/model hyperparameters</a></li>
+<li><a class="reference internal" href="#data-parsing">Data parsing</a></li>
 </ul>
-
+</li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#posteriors-and-diagnostics">Posteriors and Diagnostics</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
         </div>
       </div>
     </nav>
@@ -60,8 +72,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="#" class="icon icon-home"></a> &raquo;</li>
-      <li>Welcome to PCAT-DE’s documentation!</li>
+      <li><a href="#" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Welcome to PCAT-DE’s documentation!</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -96,125 +108,82 @@
 }
 </style>
 <section id="welcome-to-pcat-de-s-documentation">
-<h1>Welcome to PCAT-DE’s documentation!<a class="headerlink" href="#welcome-to-pcat-de-s-documentation" title="Permalink to this headline"></a></h1>
-<p>This readthedocs page describes the software PCAT-DE, or <strong>P</strong>robabilistic <strong>CAT</strong>aloging in the presence of <strong>D</strong>iffuse <strong>E</strong>mission. PCAT-DE was first used in <a class="reference external" href="https://arxiv.org/abs/2110.13932">Butler &amp; Feder (2021)</a>, while PCAT-DE is tested in more detail in Feder+(2022).</p>
-<p>
-The advantage of PCAT-DE is its flexibility: any spatial-spectral template may be used in principle and fit alongside a point source population, where the number of sources is unknown. This allows one to probe the <strong>transdimensional covariance</strong> between a given signal and the union of point source models with varying Nsrc, otherwise referred to as a <strong>metamodel</strong>.
-</p>
+<h1>Welcome to PCAT-DE’s documentation!<a class="headerlink" href="#welcome-to-pcat-de-s-documentation" title="Permalink to this heading"></a></h1>
+<p>This readthedocs page describes the software <strong>PCAT-DE</strong>, or <strong>P</strong>robabilistic <strong>CAT</strong>aloging in the presence of <strong>D</strong>iffuse <strong>E</strong>mission. PCAT-DE was first used in <a class="reference external" href="https://arxiv.org/abs/2110.13932">Butler &amp; Feder et al. (2021)</a>, while PCAT-DE is tested in more detail in Feder et al. (2022).</p>
+<p>The advantage of PCAT-DE is its flexibility: any spatial-spectral template may be used in principle and fit alongside a point source population, where the number of sources is unknown. This allows one to probe the <strong>transdimensional covariance</strong> between a given signal and the union of point source models with varying Nsrc, otherwise referred to as a <strong>metamodel</strong>.</p>
 <p>The use applications for PCAT-DE so far include:</p>
-<ul>
-<li> Detection and measurement of point sources in the presence of diffuse galactic cirrus</li>
-<li> Measurement of spatially extended Sunyaev-Zel'dovich effect in the presence of cosmic infrared background (CIB) galaxies and diffuse galactic cirrus.</li>
+<ul class="simple">
+<li><p>Detection and measurement of point sources in the presence of diffuse galactic cirrus</p></li>
+<li><p>Measurement of spatially extended Sunyaev-Zel’dovich effect in the presence of cosmic infrared background (CIB) galaxies and diffuse galactic cirrus</p></li>
 </ul>
-<!-- <div class="toctree-wrapper compound"> -->
-</div>
-<!-- <p class="caption" role="heading"><span class="caption-text"></span></p> -->
-
-<!-- <ul> -->
-<!-- <li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li> -->
-<!-- </ul> -->
-<!-- </div> -->
-<br>
-<div class="section" id="installation">
-<span id="sectinst"></span><h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
-<p>To install PCAT-DE you can use pip or download the latest version on Github and run </p>
-<div class="code highlight-default"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">install</span>
-</pre></div>
-</div>
-
-<div class="section" id="previous-work">
-<span id="sectinst"></span><h2>Existing work on probabilistic cataloging<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
-<p>This work builds on a long list of existing implementations and extensions based on the framework of probabilistic cataloging. All of these methods build on <strong>transdimensional inference</strong>, in which the number of model components is inferred simultaneously with the properties of the components. This list is almost certaintly non-exhaustive:</p>
-<ul>
-<li>Detection of multiple exoplanet radial velocity signals in the presence of stellar activity (<a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2015MNRAS.448.3206B/abstract">Brewer &amp; Donovan (2015)</a>) </li>
-<li>Point source photometry in crowded stellar fields  (<a class="reference external" href="https://iopscience.iop.org/article/10.1088/0004-6256/146/1/7">Brewer et al. (2015)</a>, 
-  <a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-3881/aa8565/pdf">Portillo et al. (2017)</a>, <a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-3881/ab74cf/meta">Feder et al. (2020)</a>)
-</li>
-</li>
-<li>Inference of dark matter sub-halo mass functions in strong gravitationally lensed systems (<a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-4357/aaaa1e/pdf">Daylan et al. (2017)</a>)</li>
-</li>
-<li>Constraints on number counts of sub-threshold point source populations in Fermi-LAT data (<a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-4357/aa679e/meta">Daylan et al. (2017)</a>)</li>
-<li> Measurement of spatially extended Sunyaev-Zel'dovich effect in the presence of cosmic infrared background (CIB) galaxies and diffuse galactic cirrus.
-(<a class="reference external" href="https://arxiv.org/abs/2110.13932">Butler &amp; Feder (2021)</a>)
-  </li>
-
-</ul>
-
-
-</div>
-
-<div class="section" id="implementation">
-<span id="sectinst"></span><h2>Implementation details<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
-<p>
-The code is structured as follows. First, the <code class="docutils literal"><span class="pre">pcat_main()</span></code> class is instantiated, using a combination of user-provided parameters and parameters stored in configuration files. Each time PCAT is run, a parameter file is saved in pickled and readable forms (params.npz, params_read.txt) within the results folder.
-
-There are many hyperparameters that can be tuned, which are specified in config.py, however in practice many of these do not need to be modified. They can be broken down into various groups:
-<ul>
-<li><b>Data configuration parameters</b>. This includes the location of the files (can be input through data_path or combination of <code class="docutils literal"><span class="pre">im_fpath</span></code> and <code class="docutils literal"><span class="pre">err_fpath</span></code>) and details of the noise model implementation. These should be the names of FITS files (with <code class="docutils literal"><span class="pre">.fits</span></code> extensions). The data can be fed in as either a single observed map (e.g., <code class="docutils literal"><span class="pre">image_extnames=['SIGNAL']</span></code>), or as a sum of several maps, (e.g., <code class="docutils literal"><span class="pre">image_extnames=[{signal_noiseless}, {noise}]</span></code>), where <span class="pre">{signal_noiseless}</span></code> and <span class="pre">{noise}</span></code> should be customized to the saved FITS image cards. Additional Gaussian noise can be added by setting  <code class="docutils literal"><span class="pre">add_noise</span></code> to True and either specifying a constant noise level (<code class="docutils literal"><span class="pre">scalar_noise_sigma</span></code>) or using the uncertainty map (<code class="docutils literal"><span class="pre">add_noise=True</span></code> and <code class="docutils literal"><span class="pre">use_uncertainty_map=True</span></code>). The details of the PSF can be specified in terms of a beam full width at half maximum (FWHM, <code class="docutils literal"><span class="pre">psf_fwhm</span></code>) provided in pixel units (this assumes a Gaussian beam), or as a generic PSF postage stamp (<code class="docutils literal"><span class="pre">use_uncertainty_map</span></code>=True). When an empirical PSF estimate is available it can be fed into PCAT using the <code class="docutils literal"><span class="pre">psf_postage_stamp</span></code> keyword. If one wants to run PCAT on a masked version of the image, the most straightforward way to do this is to set all pixels in the uncertainty map to zero/np.inf/np.nan. PCAT will have predicted model values for these pixels, however they are zero-weighted in the likelihood evaluation so this can be thought of as a type of inpainting.
-</li>
-
-<li> <b>Map pre-processing parameters</b></li>
-<li> <b>PCAT sampler parameters/model hyperparameters.</b> The number of samples is set by <code class="docutils literal"><span class="pre">nsamp</span></code> -- by default the chains are thinned by a factor of <code class="docutils literal"><span class="pre">nloop=1000</span></code>, so a run with <code class="docutils literal"><span class="pre">nsamp=4000</span></code> is really <span class="math">4 x 10^6</span> model evaluations. For computational efficiency, it is recommended to set a <code class="docutils literal"><span class="pre">max_nsrc</span></code> for the model. The maximum should be sufficiently far from the bulk of the posterior on Nsrc. Oftentimes if the number of sources is diverging it means something is not correct in the data parsing or the astrometric calibration.</li>
-<li> Hyperparameters describing model for constant background/mean normalization of maps ("Background Parameters"), any fixed spatial templates ("Template Parameters") and the Fourier component templates ("Fourier Component Parameters").</li>
-<li>Run time diagnostics/posterior plot details.</li>
-<li>Optional parameters for computing condensed catalog from posterior samples ("Condensed Catalog").</li>
-</ul>
-</p>
-<p>
-These parameters can be directly modified in the configuration file, or passed as keyword arguments to the lion class instantiation.
-</p>
-
-
-<p>
-Model proposals are called many times within the PCAT chains. These are included in the <code class="docutils literal"><span class="pre">Proposal()</span></code> class and are drawn from according to the model components and proposal weights ("moveweights").
-</p>
-
-<span id="sectinst"></span><h3>Data parsing<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h3>
-<p>
-One important (and error prone) step in running PCAT is the proper parsing of maps and other data products to PCAT. Because PCAT builds a generative model for the observed data, it typically needs:
-</p>
-<ul>
-<li>The observed maps</li>
-<li>A model for the point spread function (PSF) of the telescope optics and the pixel function</li>
-<li>A noise model image for each map</li>
-<li>If running on several maps (e.g., multiband data), a consistent astrometric reference frame across images (along with consistent trimming of maps)</li>
-</ul>
-
-<p>
-In PCAT-DE, two sets of diagnostics are included to ensure the data products are parsed correctly. To validate the astrometry, PCAT has a test module <code class="docutils literal"><span class="pre">validate_astrometry()</span></code>which projects a grid of points across each of the images. The second shows the data as they are parsed in and is used when <code class="docutils literal"><span class="pre">show_input_maps</span></code> is set to True. To plot these for an individual run in real time you want to set <code class="docutils literal"><span class="pre">matplotlib.colors('tkAGG')</span></code>, otherwise they will be saved as files in the results folder (specified by <code class="docutils literal"><span class="pre">config.result_path</span></code>). 
-</p>
-<p>
-
-</p>
-<span id="sectexample"></span><h3>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h3>
-<p>
-Example scripts can be found in the repository under <code class="docutils literal"><span class="pre">example1.py</span></code>. Some code implementing artificial star tests can be found in the script <code class="docutils literal"><span class="pre">artificial_star_test.py</span></code>
-</p>
-
-<span id="sectinst"></span><h3>Posteriors and Diagnostics<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h3>
-<p>
-Verifying the proper convergence of PCAT can be done by inspecting the posteriors and other diagnostics derived from posterior samples.
-<ul>
-<li>The chi squared of the samples and the reduced chi squared statistics.</li>
-<li>Pixel-wise residual maps</li>
-<li>Number of sources. Does the posterior on Nsrc reside well within the range of nmin/nmax?</li>
-<li>If running on several maps (e.g., multiband data), a consistent astrometric reference frame across images (along with consistent trimming of maps)</li>
-<li>Acceptance fractions for different proposals. If these are too low, it may suggest the model has not converged. If they are too high, it may suggest the proposal kernels are too narrow, such the delta log posterior between models is close to zero.</li>
-</ul>
-</p>
-
-</div>
-
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading"></a></h2>
+<p>To install PCAT-DE you can clone the latest version on <a class="reference external" href="https://github.com/RichardFeder/pcat-de">Github</a>.</p>
 </section>
-
-
+<section id="existing-work-on-probabilistic-cataloging">
+<h2>Existing work on probabilistic cataloging<a class="headerlink" href="#existing-work-on-probabilistic-cataloging" title="Permalink to this heading"></a></h2>
+<p>This work builds on a long list of existing implementations and extensions based on the framework of probabilistic cataloging. All of these methods build on <strong>transdimensional inference</strong>, in which the number of model components is inferred simultaneously with the properties of the components. This list is almost certaintly non-exhaustive:</p>
+<ul class="simple">
+<li><p>Detection of multiple exoplanet radial velocity signals in the presence of stellar activity <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2015MNRAS.448.3206B/abstract">Brewer &amp; Donovan (2015)</a></p></li>
+<li><p>Point source photometry in crowded stellar fields  <a class="reference external" href="https://iopscience.iop.org/article/10.1088/0004-6256/146/1/7">Brewer et al. (2015)</a>,
+<a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-3881/aa8565/pdf">Portillo et al. (2017)</a>, <a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-3881/ab74cf/meta">Feder et al. (2020)</a>)</p></li>
+<li><p>Inference of dark matter sub-halo mass functions in strong gravitationally lensed systems (<a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-4357/aaaa1e/pdf">Daylan et al. (2017b)</a>)</p></li>
+<li><p>Constraints on number counts of sub-threshold point source populations in Fermi-LAT data (<a class="reference external" href="https://iopscience.iop.org/article/10.3847/1538-4357/aa679e/meta">Daylan et al. (2017a)</a>)</p></li>
+<li><p>Measurement of spatially extended Sunyaev-Zel’dovich effect in the presence of cosmic infrared background (CIB) galaxies and diffuse galactic cirrus (<a class="reference external" href="https://arxiv.org/abs/2110.13932">Butler &amp; Feder (2021)</a>).</p></li>
+</ul>
+</section>
+<section id="implementation-details">
+<h2>Implementation details<a class="headerlink" href="#implementation-details" title="Permalink to this heading"></a></h2>
+<p>The code is structured as follows. First, the <code class="docutils literal notranslate"><span class="pre">pcat_main()</span></code> class is instantiated, using a combination of user-provided parameters and parameters stored in configuration files. Each time PCAT is run, a parameter file is saved in pickled and readable forms (params.npz, params_read.txt) within the results folder.</p>
+<p>There are many hyperparameters that can be tuned, which are specified in <code class="docutils literal notranslate"><span class="pre">config.py</span></code>, however in practice many of these do not need to be modified. They can be broken down into various groups:</p>
+<section id="data-configuration-parameters">
+<h3>Data configuration parameters<a class="headerlink" href="#data-configuration-parameters" title="Permalink to this heading"></a></h3>
+<p>This includes the location of the files (can be input through data_path or combination of <code class="docutils literal notranslate"><span class="pre">im_fpath</span></code> and <code class="docutils literal notranslate"><span class="pre">err_fpath</span></code>) and details of the noise model implementation. These should be the names of FITS files (with <code class="docutils literal notranslate"><span class="pre">.fits</span></code> extensions). The data can be fed in as either a single observed map (e.g., <code class="docutils literal notranslate"><span class="pre">image_extnames=['SIGNAL']</span></code>), or as a sum of several maps, (e.g., <code class="docutils literal notranslate"><span class="pre">image_extnames=[{signal_noiseless},</span> <span class="pre">{noise}]</span></code>), where <code class="docutils literal notranslate"><span class="pre">{signal_noiseless}</span></code> and <code class="docutils literal notranslate"><span class="pre">{noise}</span></code> should be customized to the saved FITS image cards. Additional Gaussian noise can be added by setting  <code class="docutils literal notranslate"><span class="pre">add_noise</span></code> to True and either specifying a constant noise level (<code class="docutils literal notranslate"><span class="pre">scalar_noise_sigma</span></code>) or using the uncertainty map (<code class="docutils literal notranslate"><span class="pre">add_noise=True</span></code> and <code class="docutils literal notranslate"><span class="pre">use_uncertainty_map=True</span></code>). The details of the PSF can be specified in terms of a beam full width at half maximum (FWHM, <code class="docutils literal notranslate"><span class="pre">psf_fwhm</span></code>) provided in pixel units (this assumes a Gaussian beam), or as a generic PSF postage stamp. When an empirical PSF estimate is available it can be fed into PCAT using the <code class="docutils literal notranslate"><span class="pre">psf_postage_stamp</span></code> keyword. If one wants to run PCAT on a masked version of the image, the most straightforward way to do this is to set all pixels in the uncertainty map to zero/inf/NaN. PCAT will have predicted model values for these pixels, however they are zero-weighted in the likelihood evaluation so this can be thought of as a type of inpainting.</p>
+</section>
+<section id="map-pre-processing-parameters">
+<h3>Map pre-processing parameters<a class="headerlink" href="#map-pre-processing-parameters" title="Permalink to this heading"></a></h3>
+</section>
+<section id="pcat-sampler-parameters-model-hyperparameters">
+<h3>PCAT sampler parameters/model hyperparameters<a class="headerlink" href="#pcat-sampler-parameters-model-hyperparameters" title="Permalink to this heading"></a></h3>
+<p>The number of samples is set by <code class="docutils literal notranslate"><span class="pre">nsamp</span></code> – by default the chains are thinned by a factor of <code class="docutils literal notranslate"><span class="pre">nloop=1000</span></code>, so a run with <code class="docutils literal notranslate"><span class="pre">nsamp=4000</span></code> is really <span class="math notranslate nohighlight">\(4 \times 10^6\)</span> model evaluations. For computational efficiency, it is recommended to set a <code class="docutils literal notranslate"><span class="pre">max_nsrc</span></code> for the model. The maximum should be sufficiently far from the bulk of the posterior on Nsrc. Oftentimes if the number of sources is diverging it means something is not correct in the data parsing or the astrometric calibration.
+- Hyperparameters describing model for constant background/mean normalization of maps (“Background Parameters”), any fixed spatial templates (“Template Parameters”) and the Fourier component templates (“Fourier Component Parameters”).
+- Run time diagnostics/posterior plot details.
+- Optional parameters for computing condensed catalog from posterior samples (“Condensed catalog”).</p>
+<p>These parameters can be directly modified in the configuration file, or passed as keyword arguments to the lion class instantiation. Model proposals are called many times within the PCAT chains. These are included in the <code class="docutils literal notranslate"><span class="pre">Proposal()</span></code> class and are drawn from according to the model components and proposal weights (“moveweights”).</p>
+</section>
+<section id="data-parsing">
+<h3>Data parsing<a class="headerlink" href="#data-parsing" title="Permalink to this heading"></a></h3>
+<p>One important (and error prone) step in running PCAT is the proper parsing of maps and other data products to PCAT. Because PCAT builds a generative model for the observed data, it typically needs:</p>
+<ul class="simple">
+<li><p>The observed maps</p></li>
+<li><p>A model for the point spread function (PSF) of the telescope optics and the pixel function</p></li>
+<li><p>A noise model image for each map</p></li>
+<li><p>If running on several maps (e.g., multiband data), a consistent astrometric reference frame across images (along with consistent trimming of maps)</p></li>
+</ul>
+<p>In PCAT-DE, two sets of diagnostics are included to ensure the data products are parsed correctly. To validate the astrometry, PCAT has a test module <code class="docutils literal notranslate"><span class="pre">validate_astrometry()</span></code> which projects a grid of points across each of the images. The second shows the data as they are parsed in and is used when <code class="docutils literal notranslate"><span class="pre">show_input_maps</span></code> is set to True. To plot these for an individual run in real time you want to set <code class="docutils literal notranslate"><span class="pre">matplotlib.colors('tkAGG')</span></code>, otherwise they will be saved as files in the results folder (specified by <code class="docutils literal notranslate"><span class="pre">config.result_path</span></code>).</p>
+</section>
+</section>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this heading"></a></h2>
+<p>Example scripts can be found in the repository under <code class="docutils literal notranslate"><span class="pre">example1.py</span></code>. Some code implementing artificial star tests can be found in the script <code class="docutils literal notranslate"><span class="pre">artificial_star_test.py</span></code></p>
+<section id="posteriors-and-diagnostics">
+<h3>Posteriors and Diagnostics<a class="headerlink" href="#posteriors-and-diagnostics" title="Permalink to this heading"></a></h3>
+<p>Verifying the proper convergence of PCAT can be done by inspecting the posteriors and other diagnostics derived from posterior samples.</p>
+<ul class="simple">
+<li><p>The chi squared of the samples and the reduced chi squared statistics.</p></li>
+<li><p>Pixel-wise residual maps</p></li>
+<li><p>Number of sources. Does the posterior on Nsrc reside well within the range of <span class="math notranslate nohighlight">\([N_{min}, N_{max}]\)</span>?</p></li>
+<li><p>If running on several maps (e.g., multiband data), a consistent astrometric reference frame across images (along with consistent trimming of maps)</p></li>
+<li><p>Acceptance fractions for different proposals. If these are too low, it may suggest the model has not converged. If they are too high, it may suggest the proposal kernels are too narrow, such the delta log posterior between models is close to zero.</p></li>
+</ul>
+</section>
+</section>
+</section>
 
 
            </div>
           </div>
-          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="api.html" class="btn btn-neutral float-right" title="API" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-    </div>
+          <footer>
 
   <hr/>
 
@@ -226,6 +195,7 @@ Verifying the proper convergence of PCAT can be done by inspecting the posterior
     <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     provided by <a href="https://readthedocs.org">Read the Docs</a>.
    
+
 </footer>
         </div>
       </div>
