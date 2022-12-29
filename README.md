@@ -5,5 +5,5 @@ Certain datasets may require a consistent treatment of both point-like and diffu
 
 The majority of the code is implemented in Python, with the exception of the image model/likelihood evaluations which are written in C. The C code optionally uses Intel's [Math Kernel Library](https://www.intel.com/content/www/us/en/develop/documentation/get-started-with-mkl-for-dpcpp/top.html) (MKL), but OpenBLAS and BLAS are available options as well if running on a non-Intel processor.
 
-Documentation can be found on [Read the Docs](pcat-de.readthedocs.io).
+Documentation can be found on [Read the Docs](https://pcat-de.readthedocs.io).
 
