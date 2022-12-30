@@ -1,5 +1,5 @@
 # pcat-de
-Probabilistic Cataloger (in the presence of) Diffuse Emission (PCAT-DE). This code builds off the probabilistic cataloging code Lion [Portillo+2017](https://iopscience.iop.org/article/10.3847/1538-3881/aa8565/pdf), and the implementation of PCAT-DE is described in Feder+(2022). 
+Probabilistic Cataloger (in the presence of) Diffuse Emission (PCAT-DE). This code builds off the probabilistic cataloging code [Lion](https://github.com/stephenportillo/lion) [(Portillo+2017)](https://iopscience.iop.org/article/10.3847/1538-3881/aa8565/pdf), and the implementation of PCAT-DE is described in Feder+(2022). 
 
 Certain datasets may require a consistent treatment of both point-like and diffuse structured signals in order to maximize the information content (and recover appropriate uncertainties) of any individual component. The code incorporates both explicit spatial templates and a set of non-parametric Fourier component templates into PCAT's forward model.
 
