@@ -17,6 +17,20 @@ class objectview(object):
 	def __init__(self, d):
 		self.__dict__ = d
 
+
+def grab_map_by_bounds(bounds, orig_map):
+
+	bound_map = orig_map[bounds[0,0]:bounds[0,1], bounds[1,0]:bounds[1,1]]
+	return bound_map
+
+def calc_weights(uncertainty_map):
+	variance_map = uncertainty_map**2
+	variance_map[variance_map==0.]=np.inf
+	variance_map[np.isnan(variance_map)] = np.inf
+	weight_map = 1. / variance_map
+
+	return variance_map, weight_map
+
 def verbprint(verbose, text, file=None, verbthresh=None):
 	"""
 	This is a verbosity dependent print function used throughout the code, useful for troubleshooting/debugging.
@@ -296,246 +310,65 @@ class pcat_data():
 
 		gdat.regsizes, gdat.margins, gdat.bounds,\
 		 
-		self.gdat.imszs, self.gdat.imszs_orig = np.zeros((self.gdat.nbands, 2))
+		self.gdat.imszs, self.gdat.imszs_orig = [np.zeros((self.gdat.nbands, 2)) for x in range(2)]
 		self.gdat.x_max_pivot_list, self.gdat.x_max_pivot_list = [np.zeros((self.gdat.nbands)) for x in range(2)]
 		self.gdat.bounds = np.zeros((self.gdat.nbands, 2, 2))
 
-	# def load_in_data(self, gdat, map_object=None, tail_name=None, show_input_maps=False, \
-	# 	temp_mock_amps_dict=None, sb_conversion_dict=None, sed_cirrus=None, bands=None:
-	
-	# def load_in_data(self, tail_name=None, show_input_maps=False, \
-	# 	temp_mock_amps_dict=None, sb_conversion_dict=None, sed_cirrus=None, bands=None:
+	def square_pad_maps(self, image, uncertainty_map, mask, template_list):
+		''' This pads the maps so that they are square, and modifies the associated uncertainty maps and masks. '''
 
-	# 	"""
-	# 	This function does the heavy lifting for parsing input data products and setting up variables in pcat_data class. At some point, template section should be cleaned up.
-	# 	This is an in place operation. 
+		smaller_dim, larger_dim = np.min(image.shape), np.max(image.shape)
+		width = find_nearest_mod(larger_dim, self.gdat.nregion)
+		height = width
+		image_size = (width, height)
 
-	# 	Parameters
-	# 	----------
+		resized_image, resized_unc, resized_mask = [np.zeros(shape=image_size) for x in range(3)]
 
-	# 	gdat : Global data object. 
+		crop_size_x = np.minimum(width, image.shape[0])
+		crop_size_y = np.minimum(height, image.shape[1])
 
-	# 	tail_name (optional) : 
-	# 			Default is 'None'.
-	# 	show_input_maps (optional) : 'boolean'.
-	# 			Default is 'False'.
-	# 	temp_mock_amps_dict (optional) :  'dictionary' of floats.
-	# 			Default is 'None'.
-	# 	sb_conversion_dict (optional) : 'dictionary' of floats.
-	# 			Default is 'None'. 
+		resized_image[:image.shape[0], :image.shape[1]] = image[:crop_size_x, :crop_size_y]
+		resized_unc[:image.shape[0], :image.shape[1]] = uncertainty_map[:crop_size_x, :crop_size_y]
+		resized_mask[:image.shape[0], :image.shape[1]] = mask[:crop_size_x, :crop_size_y]
+		
+		resized_templates = []
+		for template in template_list:
+			resized_template = np.zeros(shape=image_size)
+			resized_template[:image.shape[0], : image.shape[1]] = template[:crop_size_x, :crop_size_y]
+			resized_templates.append(resized_template)
 
-	# 	"""
+		return image_size, resized_image, resized_unc, resized_mask, resized_templates
 
-	# 	if bands is None:
-	# 		print('bands is None, using config.spire_bands:', config.spire_bands)
-	# 		bands = config.spire_bands
+	def load_sig_templates(self, band, template_file_names, sb_scale_facs=None):
 
-	# 	# these conversion factors are necessary to convert the SPIRE data from MJy/sr to peak-normalized Jansky/beam. 
-	# 	if sb_conversion_dict is None:
-	# 		sb_conversion_dict = config.sb_conversion_dict
+		''' Loads signal templates and applies conversion factors if provided. '''
+		if sb_scale_facs is None:
+			sb_scale_facs = [None for x in range(len(self.gdat.template_names))]
 
-	# 	if temp_mock_amps_dict is None:
-	# 		temp_mock_amps_dict = config.temp_mock_amps_dict
+		for t, template_name in enumerate(self.gdat.template_names):
 
-	# 	# if sed_cirrus is None:
-	# 	# 	print('No cirrus SED provided, using default values..')
-	# 	# 	sed_cirrus = config.sed_cirrus
-
-	# 	# gdat.imszs, gdat.regsizes, gdat.margins, gdat.bounds,\
-	# 	# 	 gdat.x_max_pivot_list, gdat.y_max_pivot_list, gdat.imszs_orig = [[] for x in range(7)]
-
-	# 	for b, band in enumerate(self.gdat.bands):
-	# 		image, uncertainty_map, mask, file_name = load_in_map(self.gdat, band, astrom=self.fast_astrom, show_input_maps=self.gdat.show_input_maps, image_extnames=self.gdat.image_extnames)
-	# 		imshp = image.shape 
-	# 		self.gdat.imszs_orig[b,:] = np.array([imshp[0], imshp[1]])
-	# 		self.gdat.bounds[b,:,:] = np.array([[0, imshp[0]], [0, imshp[1]])
-
-	# 		# gdat.imszs_orig.append(np.array(imshp))
-	# 		# bounds = [[0, image.shape[0]], [0, image.shape[1]]
-	# 		# gdat.bounds.append(bounds)
-
-	# 		# this part updates the fast astrometry information if cropping the images
-	# 		# if bounds is not None:
-	# 		# 	big_dim = np.maximum(find_nearest_mod(bounds[0,1]-bounds[0,0]+1, gdat.nregion), find_nearest_mod(bounds[1,1]-bounds[1,0]+1, gdat.nregion))
-	# 		# 	self.fast_astrom.dims[b] = (big_dim, big_dim)
-
-	# 		template_list = [] 
-
-	# 		print('gdat.template_name is ', self.gdat.template_filename)
-	# 		if self.gdat.n_templates > 0:
-	# 			for t, template_name in enumerate(self.gdat.template_names):
-
-	# 				verbprint(self.gdat.verbtype, 'template name is ', template_name, verbthresh=1)
-	# 				if self.gdat.band_dict[band] in config.template_bands_dict[template_name]:
-	# 					verbprint(self.gdat.verbtype, 'Band, template band, lambda: '+str(self.gdat.band_dict[band])+', '+str(config.template_bands_dict[template_name])+', '+str(self.gdat.lam_dict[self.gdat.band_dict[band]]), verbthresh=1)
-
-	# 					if self.gdat.template_filename is not None and template_name=='sze':
-	# 						temp_name = self.gdat.template_filename[template_name]
-
-	# 						for loopband in config.spire_band_names:
-	# 							if loopband in temp_name:
-	# 								template_file_name = temp_name.replace(loopband,  'P'+str(self.gdat.band_dict[band])+'W')
-
-	# 						print('Template file name for band '+str(self.gdat.band_dict[band])+' is '+template_file_name)
-	# 						template = fits.open(template_file_name)[1].data 
-	# 					else:
-	# 						template = fits.open(file_name)[template_name].data
-
-	# 					if show_input_maps:
-	# 						plot_single_map(template, title=template_name)
-
-	# 					if self.gdat.inject_sz_frac is not None and template_name=='sze':								
-	# 						template_inject = self.gdat.inject_sz_frac*template*temp_mock_amps_dict[self.gdat.band_dict[band]]*sb_conversion_dict[self.gdat.band_dict[band]]
-	# 						image += template_inject
-	# 						if show_input_maps:
-	# 							ampstr = 'Injected level:  '+str(np.round(self.gdat.inject_sz_frac*temp_mock_amps_dict[self.gdat.band_dict[band]]*sb_conversion_dict[self.gdat.band_dict[band]], 4))
-	# 							plot_multipanel([template_inject, image], [ampstr, 'image + sz'], figsize=(8,4), cmap='Greys')
-
-	# 				else:
-	# 					print('no band in config.template_bands_dict')
-	# 					template = None
-
-	# 				template_list.append(template)
-
-
-	# 		if b > 0:
-	# 			verbprint(self.gdat.verbtype, 'Moving to band '+str(band)+'..', verbthresh=1)
-	# 			self.fast_astrom.fit_astrom_arrays(0, b, bounds0=bounds[0], bounds1=bounds[b])
-
-	# 			x_max_pivot, y_max_pivot = self.fast_astrom.transform_q(np.array([self.gdat.imsz0[0]]), np.array([self.gdat.imsz0[1]]), b-1)
-	# 			print('xmaxpivot, ymaxpivot for band ', i, ' are ', x_max_pivot, y_max_pivot)
-	# 			self.gdat.x_max_pivot_list.append(x_max_pivot)
-	# 			self.gdat.y_max_pivot_list.append(y_max_pivot)
-	# 		else:
-	# 			self.gdat.x_max_pivot_list.append(big_dim)
-	# 			self.gdat.y_max_pivot_list.append(big_dim)
-
-	# 		if self.gdat.noise_thresholds is not None:
-	# 			uncertainty_map[uncertainty_map > self.gdat.noise_thresholds[b]] = 0 # this equates to downweighting the pixels
-
-	# 		uncertainty_map = uncertainty_map[bounds[0,0]:bounds[0,1], bounds[1,0]:bounds[1,1]]
-	# 		image = image[bounds[0,0]:bounds[0,1], bounds[1,0]:bounds[1,1]]
-			
-	# 		# uncertainty_map = uncertainty_map[bounds[0,0]:bounds[0,1]+1, bounds[1,0]:bounds[1,1]+1] # bounds
-	# 		# image = image[bounds[0,0]:bounds[0,1]+1, bounds[1,0]:bounds[1,1]+1]
-
-	# 		smaller_dim, larger_dim = np.min(image.shape), np.max(image.shape)
-
-	# 		self.gdat.width = find_nearest_mod(larger_dim, self.gdat.nregion)
-	# 		self.gdat.height = self.gdat.width
-	# 		image_size = (self.gdat.width, self.gdat.height)
-
-	# 		resized_image = np.zeros(shape=image_size)
-	# 		resized_unc = np.zeros(shape=image_size)
-	# 		resized_mask = np.zeros(shape=image_size)
-
-	# 		crop_size_x = np.minimum(self.gdat.width, image.shape[0])
-	# 		crop_size_y = np.minimum(self.gdat.height, image.shape[1])
-			
-	# 		resized_image[:image.shape[0], :image.shape[1]] = image[:crop_size_x, :crop_size_y]
-	# 		resized_unc[:image.shape[0], :image.shape[1]] = uncertainty_map[:crop_size_x, :crop_size_y]
-	# 		resized_mask[:image.shape[0], :image.shape[1]] = mask[:crop_size_x, :crop_size_y]
-	# 		resized_template_list = []
-
-	# 		if b > 0 and int(x_max_pivot) < resized_image.shape[0]:
-	# 			print('Setting pixels in band '+str(b)+' not in band 0 FOV to zero..')
-	# 			resized_image[resized_mask==0] = 0.
-	# 			resized_unc[resized_mask==0] = 0.
-	# 			plot_single_map(resized_mask, title='resized mask')
-
-	# 		for t, template in enumerate(template_list):
+			verbprint(self.gdat.verbtype, 'template name is ', template_name, verbthresh=1)
+			if self.gdat.band_dict[band] in config.template_bands_dict[template_name]:
 				
-	# 			if template is not None:
-	# 				resized_template = np.zeros(shape=image_size)
+				verbprint(self.gdat.verbtype, 'Band, template band, lambda: '+str(self.gdat.band_dict[band])+', '+str(config.template_bands_dict[template_name])+', '+str(self.gdat.lam_dict[self.gdat.band_dict[band]]), verbthresh=1)
 
-	# 				# template = template[bounds[0,0]:bounds[0,1]+1, bounds[1,0]:bounds[1,1]+1]
+				template = fits.open(template_file_names[t])[template_name].data
+				if show_input_maps:
+					plot_single_map(template, title=template_name)
 
-	# 				template = template[bounds[0,0]:bounds[0,1], bounds[1,0]:bounds[1,1]] # bounds
-	# 				resized_template[:image.shape[0], : image.shape[1]] = template[:crop_size_x, :crop_size_y]
+				if sb_scale_facs[t] is not None:
+					template *= sb_scale_facs[t]
 
-	# 				if show_input_maps:
-	# 					plot_multipanel([resized_template, resized_image], ['Resized template, '+self.gdat.template_order[t], 'Image, '+self.gdat.template_order[t]], cmap='Greys')
+			else:
+				print('no band in config.template_bands_dict')
+				template = None
 
-	# 				if self.gdat.template_order[t] == 'dust' or self.gdat.template_order[t] == 'planck':
-	# 					resized_template -= np.mean(resized_template)
+			template_list.append(template)
 
-	# 					if show_input_maps:
-	# 						plot_single_map(resized_template, title=self.gdat.template_order[t]+', '+str(self.gdat.tail_name), lopct=5, hipct=95)
-
-	# 					if self.gdat.inject_dust and template_name=='planck':
-	# 						verbprint(self.gdat.verbtype, 'Injecting dust template into image..', verbthresh=1)
-	# 						resized_image += resized_template
-
-	# 						if show_input_maps:
-	# 							f = plot_multipanel([resized_template, resized_image], ['Injected dust', 'Image + dust'])
-
-	# 				resized_template_list.append(resized_template.astype(np.float32))
-	# 			else:
-	# 				resized_template_list.append(None)
+		return template_list
 
 
-	# 		if self.gdat.inject_diffuse_comp and self.gdat.diffuse_comp_path is not None:
-
-	# 			diffuse_comp = np.load(self.gdat.diffuse_comp_path)[band] # specific to SPIRE files
-	# 			if show_input_maps:
-	# 				plot_single_map(diffuse_comp, title='Diffuse component, '+str(cropped_diffuse_comp.shape))
-
-	# 			cropped_diffuse_comp = diffuse_comp[:self.gdat.width, :self.gdat.height]
-	# 			if show_input_maps:
-	# 				plot_single_map(cropped_diffuse_comp, title='Cropped diffuse component, '+str(cropped_diffuse_comp.shape))
-
-	# 			resized_image += cropped_diffuse_comp
-	# 			if show_input_maps:
-	# 				plot_single_map(resized_image, title='Resized image with cropped diffuse comp')
-
-	# 			self.injected_diffuse_comp.append(cropped_diffuse_comp.astype(np.float32))
-
-	# 		variance = resized_unc**2
-	# 		variance[variance==0.]=np.inf
-	# 		weight = 1. / variance
-
-	# 		self.weights.append(weight.astype(np.float32))
-	# 		self.uncertainty_maps.append(resized_unc.astype(np.float32))
-	# 		resized_image[weight==0] = 0.
-	# 		self.data_array.append(resized_image.astype(np.float32)-self.gdat.mean_offsets[b]) # constant offset, will need to change
-	# 		self.template_array.append(resized_template_list)
-
-	# 		if i==0:
-	# 			self.gdat.imsz0 = image_size
-
-	# 		if show_input_maps:
-	# 			plot_single_map(self.data_array[b], title='Data, '+self.gdat.tail_name, lopct=5, hipct=95)
-	# 			plot_single_map(self.uncertainty_maps[b], title='Uncertainty map, '+self.gdat.tail_name, lopct=5, hipct=95)
-
-
-	# 		self.gdat.imszs.append(image_size)
-	# 		self.gdat.regsizes.append(image_size[0]/gdat.nregion)
-	# 		self.gdat.frac = np.count_nonzero(weight)/float(self.gdat.width*self.gdat.height)
-	# 		psf, cf, nc, nbin = get_gaussian_psf_template(pixel_fwhm=self.gdat.psf_fwhms[b]) # variable psf pixel fwhm
-
-	# 		verbprint(self.gdat.verbtype, 'Image maximum is '+str(np.max(self.data_array[0]))+', gdat.frac = '+str(self.gdat.frac)+', sum of PSF is '+str(np.sum(psf)), verbthresh=1)
-
-	# 		self.psfs.append(psf)
-	# 		self.cfs.append(cf)
-	# 		self.ncs.append(nc)
-	# 		self.nbins.append(nbin)
-	# 		self.fracs.append(self.gdat.frac)
-
-	# 	# lets confirm that the final processed images respect the sub-region dimensions
-	# 	self.gdat.regions_factor = 1./float(self.gdat.nregion**2)
-	# 	assert self.gdat.imsz0[0] % self.gdat.regsizes[0] == 0 
-	# 	assert self.gdat.imsz0[1] % self.gdat.regsizes[0] == 0 
-
-	# 	pixel_variance = np.median(self.uncertainty_maps[0]**2)
-
-	# 	verbprint(self.gdat.verbtype, 'pixel_variance:'+str(pixel_variance), verbthresh=1)
-	# 	verbprint(self.gdat.verbtype, 'self.dat.fracs:'+str(self.fracs), verbthresh=1)
-
-	# 	self.gdat.err_f = np.sqrt(self.gdat.N_eff * pixel_variance)/self.gdat.err_f_divfac
-
-
-
-	def load_in_data_new(self, tail_name=None, show_input_maps=False, \
+	def load_in_data(self, tail_name=None, show_input_maps=False, \
 		temp_mock_amps_dict=None, sb_conversion_dict=None, sed_cirrus=None, bands=None):
 
 		"""
@@ -569,11 +402,10 @@ class pcat_data():
 			image, uncertainty_map, mask, file_name = load_in_map(self.gdat, band, astrom=self.fast_astrom, show_input_maps=self.gdat.show_input_maps, image_extnames=self.gdat.image_extnames)
 			imshp = image.shape 
 			self.gdat.imszs_orig[b,:] = np.array([imshp[0], imshp[1]])
-			self.gdat.bounds[b,:,:] = np.array([[0, imshp[0]], [0, imshp[1]])
+			self.gdat.bounds[b,:,:] = np.array([[0, imshp[0]], [0, imshp[1]]])
 
-			# gdat.imszs_orig.append(np.array(imshp))
-			# bounds = [[0, image.shape[0]], [0, image.shape[1]]
-			# gdat.bounds.append(bounds)
+			verbprint(self.gdat.verbtype, 'self.gdat.imszs_orig['+str(b)+',:] = '+str(self.gdat.imszs_orig[b,:]), verbthresh=1)
+			verbprint(self.gdat.verbtype, 'self.gdat.bounds['+str(b)+',:,:] = '+str(self.gdat.bounds[b,:,:]), verbthresh=1)
 
 			# this part updates the fast astrometry information if cropping the images
 			# if bounds is not None:
@@ -581,49 +413,25 @@ class pcat_data():
 			# 	self.fast_astrom.dims[b] = (big_dim, big_dim)
 
 			template_list = [] 
-
-			print('gdat.template_name is ', self.gdat.template_filename)
 			if self.gdat.n_templates > 0:
-				for t, template_name in enumerate(self.gdat.template_names):
+				verbprint(self.gdat.verbtype, 'Loading signal templates..', verbthresh=1)
+				template_list = self.load_sig_templates(band, template_file_names, sb_scale_facs=sb_scale_facs)
 
-					verbprint(self.gdat.verbtype, 'template name is ', template_name, verbthresh=1)
-					if self.gdat.band_dict[band] in config.template_bands_dict[template_name]:
-						verbprint(self.gdat.verbtype, 'Band, template band, lambda: '+str(self.gdat.band_dict[band])+', '+str(config.template_bands_dict[template_name])+', '+str(self.gdat.lam_dict[self.gdat.band_dict[band]]), verbthresh=1)
+				for t, template_inject in enumerate(template_list):
 
-						if self.gdat.template_filename is not None and template_name=='sze':
-							temp_name = self.gdat.template_filename[template_name]
+					verbprint(self.gdat.verbtype, 'Adding template to image..', verbthresh=1)
+					image += template_inject
 
-							for loopband in config.spire_band_names:
-								if loopband in temp_name:
-									template_file_name = temp_name.replace(loopband,  'P'+str(self.gdat.band_dict[band])+'W')
-
-							print('Template file name for band '+str(self.gdat.band_dict[band])+' is '+template_file_name)
-							template = fits.open(template_file_name)[1].data 
-						else:
-							template = fits.open(file_name)[template_name].data
-
-						if show_input_maps:
-							plot_single_map(template, title=template_name)
-
-						if self.gdat.inject_sz_frac is not None and template_name=='sze':								
-							template_inject = self.gdat.inject_sz_frac*template*temp_mock_amps_dict[self.gdat.band_dict[band]]*sb_conversion_dict[self.gdat.band_dict[band]]
-							image += template_inject
-							if show_input_maps:
-								ampstr = 'Injected level:  '+str(np.round(self.gdat.inject_sz_frac*temp_mock_amps_dict[self.gdat.band_dict[band]]*sb_conversion_dict[self.gdat.band_dict[band]], 4))
-								plot_multipanel([template_inject, image], [ampstr, 'image + sz'], figsize=(8,4), cmap='Greys')
-
-					else:
-						print('no band in config.template_bands_dict')
-						template = None
-
-					template_list.append(template)
-
+					if show_input_maps:
+						plot_multipanel([template_inject, image], [self.gdat.template_names[t], 'image + '+self.gdat.template_names[t]], figsize=(8,4), cmap='Greys')
 
 			if b > 0:
 				verbprint(self.gdat.verbtype, 'Moving to band '+str(band)+'..', verbthresh=1)
+				verbprint(self.gdat.verbtype, 'Loading astrometry for band '+str(band), verbthresh=1)
 				self.fast_astrom.fit_astrom_arrays(0, b, bounds0=bounds[0], bounds1=bounds[b])
-
-				x_max_pivot, y_max_pivot = self.fast_astrom.transform_q(np.array([self.gdat.imsz0[0]]), np.array([self.gdat.imsz0[1]]), b-1)
+				
+				x_max_pivot, y_max_pivot = self.fast_astrom.transform_q(np.array([self.gdat.imszs[0,0]]), np.array([self.gdat.imszs[0,1]]), b-1)
+				# x_max_pivot, y_max_pivot = self.fast_astrom.transform_q(np.array([self.gdat.imsz0[0]]), np.array([self.gdat.imsz0[1]]), b-1)
 				print('xmaxpivot, ymaxpivot for band ', i, ' are ', x_max_pivot, y_max_pivot)
 				self.gdat.x_max_pivot_list.append(x_max_pivot)
 				self.gdat.y_max_pivot_list.append(y_max_pivot)
@@ -631,93 +439,41 @@ class pcat_data():
 				self.gdat.x_max_pivot_list.append(big_dim)
 				self.gdat.y_max_pivot_list.append(big_dim)
 
-			if self.gdat.noise_thresholds is not None:
-				uncertainty_map[uncertainty_map > self.gdat.noise_thresholds[b]] = 0 # this equates to downweighting the pixels
-
-			uncertainty_map = uncertainty_map[bounds[0,0]:bounds[0,1], bounds[1,0]:bounds[1,1]]
-			image = image[bounds[0,0]:bounds[0,1], bounds[1,0]:bounds[1,1]]
-			
+			image = grab_map_by_bounds(bounds, image)
+			uncertainty_map = grab_map_by_bounds(bounds, uncertainty_map)
+			for t, template in enumerate(template_list):
+				if template is not None:
+					template_list[t] = grab_map_by_bounds(bounds, template) # bounds
 			# uncertainty_map = uncertainty_map[bounds[0,0]:bounds[0,1]+1, bounds[1,0]:bounds[1,1]+1] # bounds
 			# image = image[bounds[0,0]:bounds[0,1]+1, bounds[1,0]:bounds[1,1]+1]
 
-			smaller_dim, larger_dim = np.min(image.shape), np.max(image.shape)
-
-			self.gdat.width = find_nearest_mod(larger_dim, self.gdat.nregion)
-			self.gdat.height = self.gdat.width
-			image_size = (self.gdat.width, self.gdat.height)
-
-			resized_image = np.zeros(shape=image_size)
-			resized_unc = np.zeros(shape=image_size)
-			resized_mask = np.zeros(shape=image_size)
-
-			crop_size_x = np.minimum(self.gdat.width, image.shape[0])
-			crop_size_y = np.minimum(self.gdat.height, image.shape[1])
-			
-			resized_image[:image.shape[0], :image.shape[1]] = image[:crop_size_x, :crop_size_y]
-			resized_unc[:image.shape[0], :image.shape[1]] = uncertainty_map[:crop_size_x, :crop_size_y]
-			resized_mask[:image.shape[0], :image.shape[1]] = mask[:crop_size_x, :crop_size_y]
-			resized_template_list = []
+			image_size, resized_image, resized_unc, resized_mask, resized_templates = self.square_pad_maps(image, uncertainty_map, mask, template_list)
 
 			if b > 0 and int(x_max_pivot) < resized_image.shape[0]:
-				print('Setting pixels in band '+str(b)+' not in band 0 FOV to zero..')
+				verbprint('Setting pixels in band '+str(b)+' not in band 0 FOV to zero..')
 				resized_image[resized_mask==0] = 0.
 				resized_unc[resized_mask==0] = 0.
-				plot_single_map(resized_mask, title='resized mask')
-
-			for t, template in enumerate(template_list):
-				
-				if template is not None:
-					resized_template = np.zeros(shape=image_size)
-
-					# template = template[bounds[0,0]:bounds[0,1]+1, bounds[1,0]:bounds[1,1]+1]
-
-					template = template[bounds[0,0]:bounds[0,1], bounds[1,0]:bounds[1,1]] # bounds
-					resized_template[:image.shape[0], : image.shape[1]] = template[:crop_size_x, :crop_size_y]
-
-					if show_input_maps:
-						plot_multipanel([resized_template, resized_image], ['Resized template, '+self.gdat.template_order[t], 'Image, '+self.gdat.template_order[t]], cmap='Greys')
-
-					if self.gdat.template_order[t] == 'dust' or self.gdat.template_order[t] == 'planck':
-						resized_template -= np.mean(resized_template)
-
-						if show_input_maps:
-							plot_single_map(resized_template, title=self.gdat.template_order[t]+', '+str(self.gdat.tail_name), lopct=5, hipct=95)
-
-						if self.gdat.inject_dust and template_name=='planck':
-							verbprint(self.gdat.verbtype, 'Injecting dust template into image..', verbthresh=1)
-							resized_image += resized_template
-
-							if show_input_maps:
-								f = plot_multipanel([resized_template, resized_image], ['Injected dust', 'Image + dust'])
-
-					resized_template_list.append(resized_template.astype(np.float32))
-				else:
-					resized_template_list.append(None)
-
-
-			# if self.gdat.diffuse_comp_path is not None:
-				# diffuse_comp = np.load(self.gdat.diffuse_comp_path)[band] # specific to SPIRE files
-
-			if self.gdat.diffuse_comp_fpaths is not None:
-				diffuse_comp = np.load(self.gdat.diffuse_comp_fpaths)[band] # specific to SPIRE files
-				cropped_diffuse_comp = diffuse_comp[:self.gdat.width, :self.gdat.height]
-				resized_image += cropped_diffuse_comp
 
 				if show_input_maps:
-					plot_single_map(diffuse_comp, title='Diffuse component, '+str(cropped_diffuse_comp.shape))
-					plot_single_map(cropped_diffuse_comp, title='Cropped diffuse component, '+str(cropped_diffuse_comp.shape))
-					plot_single_map(resized_image, title='Resized image with cropped diffuse comp')
+					plot_multipanel([resized_mask, resized_image, resized_unc], ['resized mask', 'resized_image', 'resized_unc'])
+			
+			if show_input_maps:
+				for t, resized_template in enumerate(resized_templates):
+					plot_multipanel([resized_template, resized_image], ['Resized template, '+self.gdat.template_order[t], 'Resized Image'], cmap='Greys')
 
-				self.injected_diffuse_comp.append(cropped_diffuse_comp.astype(np.float32))
+			variance, weight = calc_weights(resized_unc)
 
-			variance = resized_unc**2
-			variance[variance==0.]=np.inf
-			weight = 1. / variance
+			if show_input_maps:
+				plot_single_map(weight, title='weight map', lopct=5, hipct=95)
 
 			self.weights.append(weight.astype(np.float32))
 			self.uncertainty_maps.append(resized_unc.astype(np.float32))
 			resized_image[weight==0] = 0.
+
+			# remove this?
 			self.data_array.append(resized_image.astype(np.float32)-self.gdat.mean_offsets[b]) # constant offset, will need to change
+			# self.data_array.append(resized_image.astype(float))
+			
 			self.template_array.append(resized_template_list)
 
 			if i==0:
@@ -727,13 +483,21 @@ class pcat_data():
 				plot_single_map(self.data_array[b], title='Data, '+self.gdat.tail_name, lopct=5, hipct=95)
 				plot_single_map(self.uncertainty_maps[b], title='Uncertainty map, '+self.gdat.tail_name, lopct=5, hipct=95)
 
-
-			self.gdat.imszs[b,:,:] = np.array(image_size)
+			self.gdat.imszs[b,:] = np.array(image_size)
 			self.gdat.regsizes[b] = image_size[0]/gdat.nregion
-
-
 			self.gdat.frac = np.count_nonzero(weight)/float(self.gdat.width*self.gdat.height)
-			psf, cf, nc, nbin = get_gaussian_psf_template(pixel_fwhm=self.gdat.psf_fwhms[b]) # variable psf pixel fwhm
+			
+			if self.gdat.psf_postage_stamps is None:
+				verbprint(self.gdat.verbtype, 'Using psf postage stamp/s provided..', verbthresh=0)
+				psf = self.gdat.psf_postage_stamps[b].copy()
+				nbin = self.gdat.nbin
+				nc = nbin**2
+				cf = psf_poly_fit(psf, nbin=nbin)
+
+
+			elif self.gdat.psf_fwhms[b] is not None:
+				verbprint(self.gdat.verbtype, 'Using provided PSF FWHMs to generate Gaussian beam..')
+				psf, cf, nc, nbin = get_gaussian_psf_template(pixel_fwhm=self.gdat.psf_fwhms[b]) # variable psf pixel fwhm
 
 			verbprint(self.gdat.verbtype, 'Image maximum is '+str(np.max(self.data_array[0]))+', gdat.frac = '+str(self.gdat.frac)+', sum of PSF is '+str(np.sum(psf)), verbthresh=1)
 
@@ -747,12 +511,13 @@ class pcat_data():
 			assert image_size[1] % self.gdat.regsizes[b] == 0 
 
 		pixel_variance = np.median(self.uncertainty_maps[0]**2)
-
 		verbprint(self.gdat.verbtype, 'pixel_variance:'+str(pixel_variance), verbthresh=1)
 		verbprint(self.gdat.verbtype, 'self.dat.fracs:'+str(self.fracs), verbthresh=1)
 
-		self.gdat.err_f = np.sqrt(self.gdat.N_eff * pixel_variance)/self.gdat.err_f_divfac
-
+		# previous bug? what is difference of err_f between zeroth and last bands (for SPIRE)
+		if b==0:
+			self.gdat.err_f = np.sqrt(self.gdat.N_eff * pixel_variance)/self.gdat.err_f_divfac
+			verbprint(self.gdat.verbtype, 'self.gdat.err_f = '+str(self.gdat.err_f)+' while err_f_divfac = '+str(self.gdat.err_f_divfac), verbthresh=1)
 
 
 

@@ -124,7 +124,7 @@ class Proposal:
 		self.dtemplate = None
 
 		if gdat.float_fourier_comps:
-			self.dfc = np.zeros((gdat.n_fourier_terms, gdat.n_fourier_terms, 4))
+			self.dfc = np.zeros((gdat.fourier_order, gdat.fourier_order, 4))
 			self.dfc_rel_amps = np.zeros(gdat.nbands, dtype=np.float32)
 			self.fc_rel_amp_bool = False
 
@@ -285,10 +285,10 @@ class Model:
 		self.run_movetypes = [self.gdat.print_movetypes[move] for move in self.gdat.print_movetypes.keys()]
 		self.temp_amplitude_sigs = config.temp_amplitude_sigs
 
-		if self.gdat.sz_amp_sig is not None:
-			self.temp_amplitude_sigs['sze'] = self.gdat.sz_amp_sig
-		if self.gdat.fc_amp_sig is not None:
-			self.temp_amplitude_sigs['fc'] = self.gdat.fc_amp_sig
+		# if self.gdat.sz_amp_sig is not None:
+			# self.temp_amplitude_sigs['sze'] = self.gdat.sz_amp_sig
+		# if self.gdat.fc_amp_sig is not None:
+			# self.temp_amplitude_sigs['fc'] = self.gdat.fc_amp_sig
 		# if self.gdat.binned_cib_amp_sig is not None:
 		# 	self.temp_amplitude_sigs['binned_cib'] = self.gdat.binned_cib_amp_sig # binned cib
 		
@@ -318,7 +318,7 @@ class Model:
 				self.dat.data_array[0] -= np.nanmean(self.dat.data_array[0]) # this is done to isolate the fluctuation component
 				self.bkg[0] = 0.
 
-				_, ravel_temps, bt_siginv_b, bt_siginv_b_inv, mp_coeffs, temp_A_hat, nanmask = compute_marginalized_templates(self.gdat.MP_order, self.dat.data_array[0], self.dat.uncertainty_maps[0],\
+				_, ravel_temps, bt_siginv_b, bt_siginv_b_inv, mp_coeffs, temp_A_hat, nanmask = compute_marginalized_templates(self.gdat.fourier_order, self.dat.data_array[0], self.dat.uncertainty_maps[0],\
 														  ridge_fac=self.gdat.ridge_fac, ridge_fac_alpha=self.gdat.ridge_fac_alpha, return_temp_A_hat=False, \
 														  fourier_templates = self.fourier_templates[0], show=False)
 
@@ -327,10 +327,12 @@ class Model:
 				self.bt_siginv_b = bt_siginv_b
 				self.ravel_temps = ravel_temps
 				# use best fit coefficients to initialize Fourier component model
-				self.fourier_coeffs[:self.gdat.MP_order, :self.gdat.MP_order, :] = mp_coeffs.copy()
+				# self.fourier_coeffs[:self.gdat.fourier_order, :self.gdat.fourier_order, :] = mp_coeffs.copy()
+				self.fourier_coeffs = mp_coeffs.copy()
 
-			self.n_fourier_terms = self.gdat.n_fourier_terms
-			self.dfc = np.zeros((self.n_fourier_terms, self.n_fourier_terms, 4))
+
+			self.fourier_order = self.gdat.fourier_order
+			self.dfc = np.zeros((self.fourier_order, self.fourier_order, 4))
 			self.dfc_rel_amps = np.zeros((gdat.nbands))
 			self.fc_rel_amps = self.gdat.fc_rel_amps
 		else:
@@ -369,7 +371,15 @@ class Model:
 		self.trueminf = gdat.trueminf
 		self.verbtype = gdat.verbtype
 
+		# todo update calculation with point source covariance
+		median_unc_vals = [np.nanmedian(self.dat.uncertainty_maps[b][self.dat.uncertainty_maps[b]>0]) for b in range(gdat.nbands)]
+		vol_facs = [self.dat.fracs[b]*(self.imszs[b][0]*self.imszs[b][1]-self.gdat.nominal_nsrc*self.gdat.N_eff) for b in range(gdat.nbands)]
+		bkg_prop_sigs_new = np.array([self.gdat.bkg_sig_fac[b]*median_unc_vals[b]/np.sqrt(vol_facs[b]) for b in range(gdat.nbands)])
+	
 		self.bkg_prop_sigs = np.array([self.gdat.bkg_sig_fac[b]*np.nanmedian(self.dat.uncertainty_maps[b][self.dat.uncertainty_maps[b]>0])/np.sqrt(self.dat.fracs[b]*self.imszs[b][0]*self.imszs[b][1]) for b in range(gdat.nbands)])
+
+		print('Without point sources, bkg_prop_sigs is ', self.bkg_prop_sigs)
+		print('With point sources: ', bkg_prop_sigs_new)
 
 		if gdat.bkg_prior_mus is not None:
 			self.bkg_prior_mus = gdat.bkg_prior_mus
@@ -669,7 +679,7 @@ class Model:
 							dtemp += fc_rel_amps[b]*pc_temp
 
 				else:
-					pc_temp = np.sum([dfc[i,j,k]*self.fourier_templates[b][i,j,k] for i in range(self.n_fourier_terms) for j in range(self.n_fourier_terms) for k in range(4)], axis=0)
+					pc_temp = np.sum([dfc[i,j,k]*self.fourier_templates[b][i,j,k] for i in range(self.fourier_order) for j in range(self.fourier_order) for k in range(4)], axis=0)
 					if dtemp is None:
 						dtemp = fc_rel_amps[b]*pc_temp
 					else:
@@ -769,7 +779,7 @@ class Model:
 		resids = []
 		for b in range(self.nbands):
 			resid = self.dat.data_array[b].copy() # residual for zero image is data
-			verbprint(self.gdat.verbtype, 'resid has shape '+str(resid.shape), verbthresh=1)
+			verbprint(self.gdat.verbtype, 'resid has shape '+str(resid.shape), verbthresh=2)
 			resids.append(resid)
 
 		evalx = self.stars[self._X,0:self.n]
@@ -796,7 +806,7 @@ class Model:
 			for b in range(self.nbands):
 				running_temp.append(np.zeros(self.imszs[b]))
 				if self.gdat.float_fourier_comps:
-					running_temp[b] += np.sum([self.fourier_coeffs[i,j,k]*self.fourier_templates[b][i,j,k] for i in range(self.n_fourier_terms) for j in range(self.n_fourier_terms) for k in range(4)], axis=0)
+					running_temp[b] += np.sum([self.fourier_coeffs[i,j,k]*self.fourier_templates[b][i,j,k] for i in range(self.fourier_order) for j in range(self.fourier_order) for k in range(4)], axis=0)
 
 				# if self.gdat.float_cib_templates:
 				# 	running_temp[b] += np.sum([self.binned_cib_coeffs[i]*self.coarse_cib_templates[b][i] for i in range(self.gdat.cib_nregion**2)], axis=0)
@@ -833,7 +843,7 @@ class Model:
 			t1 = time.time()
 			rtype = rtype_array[i]
 			
-			verbprint(self.verbtype, 'rtype = '+str(rtype), verbthresh=1)
+			verbprint(self.verbtype, 'rtype = '+str(rtype), verbthresh=2)
 
 			if self.nregion > 1:
 				self.parity_x = xparities[i] # should regions be perturbed randomly or systematically?
@@ -972,8 +982,8 @@ class Model:
 					regionx = get_region(refx, self.offsetxs[0], self.regsizes[0])
 					regiony = get_region(refy, self.offsetys[0], self.regsizes[0])
 
-					verbprint(self.verbtype, 'Proposal factor has shape '+str(proposal.factor.shape), verbthresh=1)
-					verbprint(self.verbtype, 'Proposal factor = '+str(proposal.factor), verbthresh=1)
+					verbprint(self.verbtype, 'Proposal factor has shape '+str(proposal.factor.shape), verbthresh=2)
+					verbprint(self.verbtype, 'Proposal factor = '+str(proposal.factor), verbthresh=2)
 					
 					if proposal.factor is not None:
 						dlogP[regiony, regionx] += proposal.factor
@@ -1175,8 +1185,8 @@ class Model:
 			chi2[b] = np.sum(self.dat.weights[b]*(self.dat.data_array[b]-models[b])*(self.dat.data_array[b]-models[b]))
 			
 
-		print('chi2 is ', chi2)
-		print('logL is ', -chi2/2)
+		verbprint(self.verbtype, 'chi2 is ', chi2, verbthresh=1)
+		verbprint(self.verbtype, 'logL is ', -chi2/2, verbthresh=1)
 		verbprint(self.verbtype, 'End of sample. self.n = '+str(self.n), verbthresh=1)
 
 		# save last of nloop samples to chain and initialize delta(parameters) to zero
@@ -1189,8 +1199,8 @@ class Model:
 		if self.gdat.float_fourier_comps:
 			self.fourier_coeffs += self.dfc 
 			self.fc_rel_amps += self.dfc_rel_amps
-			print('At the end of nloop, self.dfc_rel_amps is ', self.dfc_rel_amps)
-			print('self.fc_rel_amps is ', self.fc_rel_amps)
+			verbprint(self.verbtype, 'At the end of nloop, self.dfc_rel_amps is ', self.dfc_rel_amps, verbthresh=1)
+			verbprint(self.verbtype, 'self.fc_rel_amps is ', self.fc_rel_amps, verbthresh=1)
 			self.dfc = np.zeros_like(self.fourier_coeffs)
 			self.dfc_rel_amps = np.zeros_like(self.fc_rel_amps)
 
@@ -1199,7 +1209,7 @@ class Model:
 		# 	self.dbcc = np.zeros_like(self.binned_cib_coeffs)
 
 		self.bkg += self.dback
-		print('At the end of nloop, self.dback is', np.round(self.dback, 4), 'so self.bkg is now ', np.round(self.bkg, 4))
+		verbprint(self.verbtype, 'After thinned sample, self.dback is', np.round(self.dback, 4), 'so self.bkg is now ', np.round(self.bkg, 4), verbthresh=0)
 		self.dback = np.zeros_like(self.bkg)
 
 		timestat_array, accept_fracs = self.print_sample_status(dts, accept, outbounds, chi2, movetype, bkg_perturb_band_idxs=np.array(bkg_perturb_band_idxs), temp_perturb_band_idxs=np.array(temp_perturb_band_idxs))
@@ -1308,8 +1318,8 @@ class Model:
 
 			# choose a component (or several) nfcperturb = 1 test
 
-			proposal.idxs0 = np.random.randint(0, self.n_fourier_terms, self.gdat.n_fc_perturb)
-			proposal.idxs1 = np.random.randint(0, self.n_fourier_terms, self.gdat.n_fc_perturb)
+			proposal.idxs0 = np.random.randint(0, self.fourier_order, self.gdat.n_fc_perturb)
+			proposal.idxs1 = np.random.randint(0, self.fourier_order, self.gdat.n_fc_perturb)
 			proposal.idxsk = np.random.randint(0, 4, self.gdat.n_fc_perturb)
 
 			fc_sig_fac = self.temp_amplitude_sigs['fc']		
@@ -1380,39 +1390,18 @@ class Model:
 		temp_band_idxs = self.gdat.template_band_idxs[template_idx]
 		factor = None
 
-		# if self.gdat.temp_prop_df is not None:
-		# 	d_amp = self.temp_amplitude_sigs[self.gdat.template_order[template_idx]]*np.random.standard_t(self.gdat.temp_prop_df)
-		# else:
 		d_amp = np.random.normal(0., scale=self.temp_amplitude_sigs[self.gdat.template_order[template_idx]])
 
-		if self.gdat.delta_cp_bool and self.gdat.template_order[template_idx] != 'sze':
-			if self.gdat.template_order[template_idx] == 'planck' or self.gdat.template_order[template_idx]=='dust':
-				proposal.dtemplate[template_idx,:] = d_amp
+		band_weights = get_band_weights(temp_band_idxs) # this function returns normalized weights
+		# uncomment to institute DELTA FN PRIOR SZE @ 250 micron
+		if self.gdat.template_order[template_idx] == 'sze':
+			band_weights[0] = 0.
+			band_weights /= np.sum(band_weights)
 
-		else:
-			band_weights = get_band_weights(temp_band_idxs) # this function returns normalized weights
+		band_idx = int(np.random.choice(temp_band_idxs, p=band_weights))
 
-			# uncomment to institute DELTA FN PRIOR SZE @ 250 micron
-			if self.gdat.template_order[template_idx] == 'sze':
-				band_weights[0] = 0.
-				band_weights /= np.sum(band_weights)
-
-			band_idx = int(np.random.choice(temp_band_idxs, p=band_weights))
-
-			proposal.dtemplate[template_idx, band_idx] = d_amp*self.gdat.temp_prop_sig_fudge_facs[band_idx] # added fudge factor for more efficient sampling
-			proposal.perturb_band_idx = band_idx
-
-
-		# the lines below are implementing a step function prior where the ln(prior) = -np.inf when the amplitude is negative
-		if self.gdat.template_order[template_idx] == 'sze' and self.gdat.sz_positivity_prior:
-			
-			old_temp_amp = self.template_amplitudes[template_idx,band_idx] +self.dtemplate[template_idx, band_idx]
-			new_temp_amp = old_temp_amp+proposal.dtemplate[template_idx,band_idx]
-			
-			if new_temp_amp < 0:
-				proposal.goodmove = False
-				return proposal
-
+		proposal.dtemplate[template_idx, band_idx] = d_amp*self.gdat.temp_prop_sig_fudge_facs[band_idx] # added fudge factor for more efficient sampling
+		proposal.perturb_band_idx = band_idx
 		proposal.change_template_amplitude()
 
 		return proposal
@@ -1543,12 +1532,12 @@ class Model:
 			print('negative flux!')
 			print(np.array(pfs)[np.array(pfs)<0])
 
-		verbprint(self.verbtype, 'Average flux difference : '+str(np.average(np.abs(f0[0]-pfs[0]))), verbthresh=1)
+		verbprint(self.verbtype, 'Average flux difference : '+str(np.average(np.abs(f0[0]-pfs[0]))), verbthresh=2)
 
 		factor = self.compute_flux_prior(f0[0], pfs[0])
 
 		if np.isnan(factor).any():
-			verbprint(self.verbtype,'Factor NaN from flux', verbthresh=1)
+			verbprint(self.verbtype,'Warning: Factor NaN from flux, setting those factors to zero..', verbthresh=0)
 			verbprint(self.verbtype,'Number of f0 zero elements:'+str(len(f0[0])-np.count_nonzero(np.array(f0[0]))), verbthresh=1)
 			verbprint(self.verbtype, 'prior factor = '+str(factor), verbthresh=1)
 
@@ -1567,14 +1556,14 @@ class Model:
 
 		assert np.isnan(color_factors).any()==False       
 
-		verbprint(self.verbtype,'Average absolute color factors : '+str(np.average(np.abs(color_factors))), verbthresh=1)
-		verbprint(self.verbtype,'Average absolute flux factors : '+str(np.average(np.abs(factor))), verbthresh=1)
+		verbprint(self.verbtype,'Average absolute color factors : '+str(np.average(np.abs(color_factors))), verbthresh=2)
+		verbprint(self.verbtype,'Average absolute flux factors : '+str(np.average(np.abs(factor))), verbthresh=2)
 
 		factor = np.array(factor) + np.sum(color_factors, axis=0)
 		
 		dpos_rms = np.float32(np.sqrt(self.gdat.N_eff/(2*np.pi))*self.err_f/(np.sqrt(self.nominal_nsrc*self.regions_factor*(2+self.nbands))))/(np.maximum(f0[0],pfs[0]))
 
-		verbprint(self.verbtype,'dpos_rms : '+str(dpos_rms), verbthresh=1)
+		verbprint(self.verbtype,'dpos_rms : '+str(dpos_rms), verbthresh=2)
 		
 		dpos_rms[dpos_rms < 1e-3] = 1e-3
 		dx = np.random.normal(size=nw).astype(np.float32)*dpos_rms
@@ -1582,16 +1571,16 @@ class Model:
 		starsp[self._X,:] = stars0[self._X,:] + dx
 		starsp[self._Y,:] = stars0[self._Y,:] + dy
 		
-		verbprint(self.verbtype, 'dx : '+str(dx), verbthresh=1)
-		verbprint(self.verbtype, 'dy : '+str(dy), verbthresh=1)
-		verbprint(self.verbtype, 'Mean absolute dx and dy : '+str(np.mean(np.abs(dx)))+', '+str(np.mean(np.abs(dy))), verbthresh=1)
+		verbprint(self.verbtype, 'dx : '+str(dx), verbthresh=2)
+		verbprint(self.verbtype, 'dy : '+str(dy), verbthresh=2)
+		verbprint(self.verbtype, 'Mean absolute dx and dy : '+str(np.mean(np.abs(dx)))+', '+str(np.mean(np.abs(dy))), verbthresh=2)
 
 		for b in range(self.nbands):
 			starsp[self._F+b,:] = pfs[b]
 			if (pfs[b]<0).any():
-				print('Proposal fluxes less than 0')
-				print('band', b)
-				print(pfs[b])
+				print('Warning: Some proposal fluxes are negative in band '+str(b))
+				verbprint(self.verbtype, pfs[b], verbthresh=1)
+
 		self.bounce_off_edges(starsp)
 
 		proposal = Proposal(self.gdat)
@@ -1709,11 +1698,11 @@ class Model:
 
 			fminratio = stars0[self._F,:] / self.trueminf
  
-			verbprint(self.verbtype, 'stars0 at splitsville start: '+str(stars0), verbthresh=1)
-			verbprint(self.verbtype, 'fminratio here is '+str(fminratio), verbthresh=1)
-			verbprint(self.verbtype, 'dx = '+str(dx), verbthresh=1)
-			verbprint(self.verbtype, 'dy = '+str(dy), verbthresh=1)
-			verbprint(self.verbtype, 'idx_move : '+str(idx_move), verbthresh=1)
+			verbprint(self.verbtype, 'stars0 at splitsville start: '+str(stars0), verbthresh=2)
+			verbprint(self.verbtype, 'fminratio here is '+str(fminratio), verbthresh=2)
+			verbprint(self.verbtype, 'dx = '+str(dx), verbthresh=2)
+			verbprint(self.verbtype, 'dy = '+str(dy), verbthresh=2)
+			verbprint(self.verbtype, 'idx_move : '+str(idx_move), verbthresh=2)
 				
 			fracs.append((1./fminratio + np.random.uniform(size=nms)*(1. - 2./fminratio)).astype(np.float32))
 			
@@ -1768,12 +1757,12 @@ class Model:
 				# can this go nested in if statement? 
 			invpairs = np.empty(nms)
 			
-			verbprint(self.verbtype, 'splitsville is happening', verbthresh=1)
-			verbprint(self.verbtype, 'goodmove: '+str(goodmove), verbthresh=1)
-			verbprint(self.verbtype, 'invpairs: '+str(invpairs), verbthresh=1)
-			verbprint(self.verbtype, 'nms: '+str(nms), verbthresh=1)
-			verbprint(self.verbtype, 'sum_fs: '+str(sum_fs), verbthresh=1)
-			verbprint(self.verbtype, 'fminratio is '+str(fminratio), verbthresh=1)
+			verbprint(self.verbtype, 'splitsville is happening', verbthresh=2)
+			verbprint(self.verbtype, 'goodmove: '+str(goodmove), verbthresh=2)
+			verbprint(self.verbtype, 'invpairs: '+str(invpairs), verbthresh=2)
+			verbprint(self.verbtype, 'nms: '+str(nms), verbthresh=2)
+			verbprint(self.verbtype, 'sum_fs: '+str(sum_fs), verbthresh=2)
+			verbprint(self.verbtype, 'fminratio is '+str(fminratio), verbthresh=2)
 
 			for k in range(nms):
 				xtemp = self.stars[self._X, 0:self.n].copy()
@@ -1797,10 +1786,10 @@ class Model:
 			nchoosable = float(idx_reg.size)
 			invpairs = np.empty(nms)
 			
-			verbprint(self.verbtype, 'Merging two things!!', verbthresh=1)
-			verbprint(self.verbtype, 'nms: '+str(nms), verbthresh=1)
-			verbprint(self.verbtype, 'idx_move '+str(idx_move), verbthresh=1)
-			verbprint(self.verbtype, 'idx_kill '+str(idx_kill), verbthresh=1)
+			verbprint(self.verbtype, 'Merging two things!!', verbthresh=2)
+			verbprint(self.verbtype, 'nms: '+str(nms), verbthresh=2)
+			verbprint(self.verbtype, 'idx_move '+str(idx_move), verbthresh=2)
+			verbprint(self.verbtype, 'idx_kill '+str(idx_kill), verbthresh=2)
 				
 			for k in range(nms):
 				idx_move[k] = np.random.choice(self.max_nsrc, p=choosable/nchoosable)
@@ -1835,12 +1824,12 @@ class Model:
 			
 			fminratio = sum_fs[0] / self.trueminf
 			
-			verbprint(self.verbtype, 'fminratio: '+str(fminratio)+', nms: '+str(nms), verbthresh=1)
-			verbprint(self.verbtype, 'sum_fs[0] is '+str(sum_fs[0]), verbthresh=1)
-			verbprint(self.verbtype, 'stars0: '+str(stars0), verbthresh=1)
-			verbprint(self.verbtype, 'starsk: '+str(starsk), verbthresh=1)
-			verbprint(self.verbtype, 'idx_move '+str(idx_move), verbthresh=1)
-			verbprint(self.verbtype, 'idx_kill '+str(idx_kill), verbthresh=1)
+			verbprint(self.verbtype, 'fminratio: '+str(fminratio)+', nms: '+str(nms), verbthresh=2)
+			verbprint(self.verbtype, 'sum_fs[0] is '+str(sum_fs[0]), verbthresh=2)
+			verbprint(self.verbtype, 'stars0: '+str(stars0), verbthresh=2)
+			verbprint(self.verbtype, 'starsk: '+str(starsk), verbthresh=2)
+			verbprint(self.verbtype, 'idx_move '+str(idx_move), verbthresh=2)
+			verbprint(self.verbtype, 'idx_kill '+str(idx_kill), verbthresh=2)
 				
 			starsp = np.empty_like(stars0)
 			# place merged source at center of flux of previous two sources
@@ -1922,11 +1911,11 @@ class Model:
 			if np.isnan(factor).any():
 				verbprint(self.verbtype, 'There was a NaN factor in merge/split!', verbthresh=1)	
 
-			verbprint(self.verbtype, 'kickrange factor: '+str(np.log(2*np.pi*self.kickrange*self.kickrange)), verbthresh=1)
-			verbprint(self.verbtype, 'imsz factor: '+str(np.log(2*np.pi*self.kickrange*self.kickrange)), verbthresh=1)
-			verbprint(self.verbtype, 'kickrange factor: '+str(np.log(self.imsz0[0]*self.imsz0[1])), verbthresh=1)
-			verbprint(self.verbtype, 'fminratio: '+str(fminratio)+', fmin factor: '+str(np.log(1. - 2./fminratio)), verbthresh=1)
-			verbprint(self.verbtype, 'factor after colors: '+str(factor), verbthresh=1)
+			verbprint(self.verbtype, 'kickrange factor: '+str(np.log(2*np.pi*self.kickrange*self.kickrange)), verbthresh=2)
+			verbprint(self.verbtype, 'imsz factor: '+str(np.log(2*np.pi*self.kickrange*self.kickrange)), verbthresh=2)
+			verbprint(self.verbtype, 'kickrange factor: '+str(np.log(self.imsz0[0]*self.imsz0[1])), verbthresh=2)
+			verbprint(self.verbtype, 'fminratio: '+str(fminratio)+', fmin factor: '+str(np.log(1. - 2./fminratio)), verbthresh=2)
+			verbprint(self.verbtype, 'factor after colors: '+str(factor), verbthresh=2)
 
 
 		return proposal
@@ -1970,7 +1959,7 @@ class Samples():
 			self.template_amplitudes = np.zeros((gdat.nsamp, gdat.n_templates, gdat.nbands)) # amplitudes of templates used in fit 
 		
 		if gdat.float_fourier_comps:
-			self.fourier_coeffs = np.zeros((gdat.nsamp, gdat.n_fourier_terms, gdat.n_fourier_terms, 4)) # amplitudes of Fourier templates
+			self.fourier_coeffs = np.zeros((gdat.nsamp, gdat.fourier_order, gdat.fourier_order, 4)) # amplitudes of Fourier templates
 			self.fc_rel_amps = np.zeros(nsamp_nbands) # relative amplitudes of diffuse Fourier component model across observing bands.
 			
 		# if gdat.float_cib_templates:
@@ -2088,7 +2077,7 @@ class lion():
 	def __init__(self, **kwargs):
 			
 		for attr, valu in locals().items():
-			if '__' not in attr and attr != 'gdat' and attr != 'map_object':
+			if '__' not in attr and attr != 'gdat':
 				setattr(self.gdat, attr, valu)
 
 		#if specified, use seed for random initialization
@@ -2101,19 +2090,14 @@ class lion():
 		if self.gdat.psf_fwhms is None:
 			self.gdat.psf_fwhms = [self.gdat.psf_pixel_fwhm for i in range(self.gdat.nbands)]
 
-		self.gdat.N_eff = 4*np.pi*(self.gdat.psf_fwhms[0]/2.355)**2 # variable psf pixel fwhm, use pivot band fwhm
+		self.gdat.N_eff = 4*np.pi*(self.gdat.psf_fwhms[0]/2.355)**2 # using pivot band fwhm
 
 		# point src delay controls when all point source proposals begin
 		if self.gdat.point_src_delay is not None:
 			for movestr in ['movestar', 'birth_death', 'merge_split']:
 				self.gdat.moveweight_dict[movestr] = self.gdat.point_src_delay
 
-			# self.gdat.movestar_sample_delay = self.gdat.point_src_delay
-			# self.gdat.birth_death_sample_delay = self.gdat.point_src_delay
-			# self.gdat.merge_split_sample_delay = self.gdat.point_src_delay
-
 		self.gdat.band_dict = config.band_dict # for accessing different wavelength filenames
-		self.gdat.lam_dict = config.lam_dict
 		self.gdat.pixsize_dict = config.pixsize_dict
 
 		if self.gdat.color_sigs is None:
@@ -2123,19 +2107,13 @@ class lion():
 
 		self.gdat.timestr = time.strftime("%Y%m%d-%H%M%S")
 
-		# unless specified, sets order of Fourier model in linear marginalization to that of full model.
-		if self.gdat.MP_order is None:
-			self.gdat.MP_order = int(self.gdat.n_fourier_terms)
-		
 		# power law exponents equal to 1 in double power law will cause a numerical error.
 		if self.gdat.alpha_1 == 1.0 and self.flux_prior_type=='double_power_law':
 			self.gdat.alpha_1 += 0.01
 		if self.gdat.alpha_2 == 1.0 and self.flux_prior_type=='double_power_law':
 			self.gdat.alpha_2 += 0.01
 		
-		if self.gdat.template_names is None:
-			self.gdat.n_templates=0 
-		else:
+		if self.gdat.template_names is not None:
 			self.gdat.n_templates=len(self.gdat.template_names)
 
 		if self.gdat.mean_offsets is None:
@@ -2194,12 +2172,12 @@ class lion():
 			print('float_fourier_comps set to True, initializing Fourier component model..')
 			# if there are previous fourier components, use those
 			if self.gdat.init_fourier_coeffs is not None:
-				if self.gdat.n_fourier_terms != self.gdat.init_fourier_coeffs.shape[0]:
-					self.gdat.n_fourier_terms = self.gdat.init_fourier_coeffs.shape[0]
+				if self.gdat.fourier_order != self.gdat.init_fourier_coeffs.shape[0]:
+					self.gdat.fourier_order = self.gdat.init_fourier_coeffs.shape[0]
 			else:
-				self.gdat.init_fourier_coeffs = np.zeros((self.gdat.n_fourier_terms, self.gdat.n_fourier_terms, 4))
+				self.gdat.init_fourier_coeffs = np.zeros((self.gdat.fourier_order, self.gdat.fourier_order, 4))
 
-			self.gdat.fc_templates = multiband_fourier_templates(self.gdat.imszs, self.gdat.n_fourier_terms, psf_fwhms=self.gdat.psf_fwhms, x_max_pivot_list=self.gdat.x_max_pivot_list, scale_fac=None)
+			self.gdat.fc_templates = multiband_fourier_templates(self.gdat.imszs, self.gdat.fourier_order, psf_fwhms=self.gdat.psf_fwhms, x_max_pivot_list=self.gdat.x_max_pivot_list, scale_fac=None)
 			self.gdat.fourier_band_idxs = [None for b in range(self.gdat.nbands)]
 
 			# if no fourier comp amplitudes specified set them all to unity
@@ -2254,14 +2232,13 @@ class lion():
 		initialize_c(self.gdat, libmmult, cblas=self.gdat.cblas)
 
 		start_time = time.time()
-		verbprint(self.gdat.verbtype, 'Initializing Samples class..', verbthresh=1)
+		verbprint(self.gdat.verbtype, 'Initializing Samples class..', verbthresh=0)
 
 		samps = Samples(self.gdat)
-		verbprint(self.gdat.verbtype, 'Initializing Model class..', verbthresh=1)
+		verbprint(self.gdat.verbtype, 'Initializing Model class..', verbthresh=0)
 
 		model = Model(self.gdat, self.data, libmmult)
-
-		verbprint(self.gdat.verbtype, 'Done initializing model..', verbthresh=1)
+		verbprint(self.gdat.verbtype, 'Done initializing model..', verbthresh=0)
 
 		if self.gdat.n_marg_updates is None:
 			self.gdat.n_marg_updates = 0
@@ -2273,13 +2250,14 @@ class lion():
 			if self.gdat.bkg_moore_penrose_inv and fc_marg_counter < self.gdat.n_marg_updates and j%self.gdat.fc_marg_period==0 and j > 0:
 
 				print('j = ', j, 'while on update ', fc_marg_counter, 'of ', self.gdat.n_marg_updates, 'updates')
-				fc_model = generate_template(model.fourier_coeffs, self.gdat.n_fourier_terms, imsz=self.gdat.imszs[0], fourier_templates=model.fourier_templates[0])
+				fc_model = generate_template(model.fourier_coeffs, self.gdat.fourier_order, imsz=self.gdat.imszs[0], fourier_templates=model.fourier_templates[0])
 
-				_, _, _, _, mp_coeffs, temp_A_hat, nanmask = compute_marginalized_templates(self.gdat.MP_order, resids[0]+fc_model, self.data.uncertainty_maps[0],\
+				_, _, _, _, mp_coeffs, temp_A_hat, nanmask = compute_marginalized_templates(self.gdat.fourier_order, resids[0]+fc_model, self.data.uncertainty_maps[0],\
 										  ridge_fac=self.gdat.ridge_fac, ridge_fac_alpha=self.gdat.ridge_fac_alpha, show=False, \
 										  ravel_temps = model.ravel_temps, bt_siginv_b_inv=model.bt_siginv_b_inv, bt_siginv_b=model.bt_siginv_b)
 
-				model.fourier_coeffs[:self.gdat.MP_order, :self.gdat.MP_order, :] = mp_coeffs.copy()
+				# model.fourier_coeffs[:self.gdat.fourier_order, :self.gdat.fourier_order, :] = mp_coeffs.copy()
+				model.fourier_coeffs = mp_coeffs.copy()
 
 				fc_marg_counter += 1
 

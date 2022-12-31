@@ -18,8 +18,8 @@
 # -- Project information -----------------------------------------------------
 
 project = 'PCAT-DE'
-copyright = '2022, Richard Feder'
-author = 'Richard Feder'
+copyright = '2022, Richard M. Feder'
+author = 'Richard M. Feder'
 
 # The full version, including alpha/beta/rc tags
 release = '0.1'

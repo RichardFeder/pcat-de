@@ -19,6 +19,33 @@ Installation
 
 To install PCAT-DE you can clone the latest version on `Github <https://github.com/RichardFeder/pcat-de>`_.
 
+OpenBLAS
+++++++++
+
+To use OpenBLAS:
+
+1) Install OpenBLAS through conda or pip:: 
+
+    conda install openblas
+or directly from Github::
+
+      git clone https://github.com/xianyi/OpenBLAS
+
+2) Make the library with ‘make’ from within OpenBLAS directory. It should automatically detect the processor for installation
+3) Install the library::
+
+    make PREFIX="desired directory" install
+4) Compile the library with::
+
+    gcc -shared -o pcat-lion-openblas.so -fPIC pcat-lion-openblas.c -L"desired directory path" -lopenblas
+``-L[path]`` looks for the installed library in its path, and the ``-lopenblas`` searches for anything starting with “lib” that has “openblas” in it.
+
+
+Changelog
+---------
+This is where updates on PCAT-DE will be posted, referencing the main PCAT-DE Github branch. The current version is **0.0.1** (1/1/2023).
+
+
 
 Existing work on probabilistic cataloging
 -----------------------------------------
@@ -48,9 +75,6 @@ Data configuration parameters
 This includes the location of the files (can be input through data_path or combination of ``im_fpath`` and ``err_fpath``) and details of the noise model implementation. These should be the names of FITS files (with ``.fits`` extensions). The data can be fed in as either a single observed map (e.g., ``image_extnames=['SIGNAL']``), or as a sum of several maps, (e.g., ``image_extnames=[{signal_noiseless}, {noise}]``), where ``{signal_noiseless}`` and ``{noise}`` should be customized to the saved FITS image cards. Additional Gaussian noise can be added by setting  ``add_noise`` to True and either specifying a constant noise level (``scalar_noise_sigma``) or using the uncertainty map (``add_noise=True`` and ``use_uncertainty_map=True``). The details of the PSF can be specified in terms of a beam full width at half maximum (FWHM, ``psf_fwhm``) provided in pixel units (this assumes a Gaussian beam), or as a generic PSF postage stamp. When an empirical PSF estimate is available it can be fed into PCAT using the ``psf_postage_stamp`` keyword. If one wants to run PCAT on a masked version of the image, the most straightforward way to do this is to set all pixels in the uncertainty map to zero/inf/NaN. PCAT will have predicted model values for these pixels, however they are zero-weighted in the likelihood evaluation so this can be thought of as a type of inpainting.
 
 
-Map pre-processing parameters
-+++++++++++++++++++++++++++++
-
 
 PCAT sampler parameters/model hyperparameters
 +++++++++++++++++++++++++++++++++++++++++++++
@@ -62,8 +86,8 @@ The number of samples is set by ``nsamp`` -- by default the chains are thinned b
 
 These parameters can be directly modified in the configuration file, or passed as keyword arguments to the lion class instantiation. Model proposals are called many times within the PCAT chains. These are included in the ``Proposal()`` class and are drawn from according to the model components and proposal weights ("moveweights").
 
-Data parsing
-++++++++++++
+Data parsing/Map pre-processing parameters
+++++++++++++++++++++++++++++++++++++++++++
 
 One important (and error prone) step in running PCAT is the proper parsing of maps and other data products to PCAT. Because PCAT builds a generative model for the observed data, it typically needs:
 
