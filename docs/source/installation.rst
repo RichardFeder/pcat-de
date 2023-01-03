@@ -1,7 +1,12 @@
 Installation
 -------------
 
-To install PCAT-DE you can clone the latest version on `Github <https://github.com/RichardFeder/pcat-de>`_.
+To install PCAT-DE you can clone the latest version on `Github <https://github.com/RichardFeder/pcat-de>`_. It should soon be possible to install PCAT-DE directly from pip, i.e.::
+    
+    pip install pcat-de
+or by downloading the latest release and running::
+
+    python setup.py install
 
 Intel Math Kernel Library (MKL)
 +++++++++++++++++++++++++++++++
