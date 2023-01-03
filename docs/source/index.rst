@@ -14,6 +14,12 @@ Existing applications of PCAT-DE include:
 - Detection and measurement of point-like sources in the presence of diffuse galactic cirrus
 - Measurement of spatially extended Sunyaev-Zel'dovich effect in the presence of cosmic infrared background (CIB) galaxies and diffuse galactic cirrus
 
+.. toctree::
+   :hidden:
+   :maxdepth: 3
+
+   installation
+
 Installation
 -------------
 
