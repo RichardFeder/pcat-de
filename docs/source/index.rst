@@ -7,11 +7,11 @@ Welcome to PCAT-DE's documentation!
 ===================================
 This readthedocs page describes the software **PCAT-DE**, or **P**\robabilistic **CAT**\aloging in the presence of **D**\iffuse **E**\mission. PCAT-DE was first used in `Butler & Feder et al. (2021) <https://arxiv.org/abs/2110.13932>`_, while PCAT-DE is tested in more detail in Feder et al. (2022).
 
-The advantage of PCAT-DE is its flexibility: any spatial-spectral template may be used in principle and fit alongside a point source population, where the number of sources is unknown. This allows one to probe the **transdimensional covariance** between a given signal and the union of point source models with varying Nsrc, otherwise referred to as a **metamodel**.
+The advantage of PCAT-DE is its flexibility: any spatial-spectral template may be used in principle and fit alongside a point source population, where the number of sources is unknown. This allows one to probe the **transdimensional covariance** between a given signal and the union of point source models with varying :math:`N_{src}`, otherwise referred to as a **metamodel**.
 
-The use applications for PCAT-DE so far include:
+Existing applications of PCAT-DE include:
 
-- Detection and measurement of point sources in the presence of diffuse galactic cirrus
+- Detection and measurement of point-like sources in the presence of diffuse galactic cirrus
 - Measurement of spatially extended Sunyaev-Zel'dovich effect in the presence of cosmic infrared background (CIB) galaxies and diffuse galactic cirrus
 
 Installation
@@ -65,26 +65,26 @@ This work builds on a long list of existing implementations and extensions based
 Implementation details
 ----------------------
 
-The code is structured as follows. First, the ``pcat_main()`` class is instantiated, using a combination of user-provided parameters and parameters stored in configuration files. Each time PCAT is run, a parameter file is saved in pickled and readable forms (params.npz, params_read.txt) within the results folder.
+The code is structured as follows. First, the ``pcat_main()`` class is instantiated, using a combination of user-provided paths (stored in ``config.py``) and tunable hyperparameters which are specified in ``params.py``. Each time PCAT is run, a parameter file is saved in pickled and readable forms (``params.npz``, ``params_read.txt``) within the results folder.
 
-There are many hyperparameters that can be tuned, which are specified in ``config.py``, however in practice many of these do not need to be modified. They can be broken down into various groups:
+In practice many of the hyperparameters do not need to be modified, however adding new ones is straightforward. The existing hyperparameters can be broken down into various groups:
 
 Data configuration parameters
 +++++++++++++++++++++++++++++
 
-This includes the location of the files (can be input through data_path or combination of ``im_fpath`` and ``err_fpath``) and details of the noise model implementation. These should be the names of FITS files (with ``.fits`` extensions). The data can be fed in as either a single observed map (e.g., ``image_extnames=['SIGNAL']``), or as a sum of several maps, (e.g., ``image_extnames=[{signal_noiseless}, {noise}]``), where ``{signal_noiseless}`` and ``{noise}`` should be customized to the saved FITS image cards. Additional Gaussian noise can be added by setting  ``add_noise`` to True and either specifying a constant noise level (``scalar_noise_sigma``) or using the uncertainty map (``add_noise=True`` and ``use_uncertainty_map=True``). The details of the PSF can be specified in terms of a beam full width at half maximum (FWHM, ``psf_fwhm``) provided in pixel units (this assumes a Gaussian beam), or as a generic PSF postage stamp. When an empirical PSF estimate is available it can be fed into PCAT using the ``psf_postage_stamp`` keyword. If one wants to run PCAT on a masked version of the image, the most straightforward way to do this is to set all pixels in the uncertainty map to zero/inf/NaN. PCAT will have predicted model values for these pixels, however they are zero-weighted in the likelihood evaluation so this can be thought of as a type of inpainting.
+This includes the location of the files (can be input through data_path or combination of ``im_fpath`` and ``err_fpath``) and details of the noise model implementation. These should be the names of FITS files (with ``.fits`` extensions). The data can be fed in as either a single observed map (e.g., ``image_extnames=['SIGNAL']``), or as a sum of several maps, (e.g., ``image_extnames=[{signal_noiseless}, {noise}]``), where ``{signal_noiseless}`` and ``{noise}`` should be customized to the saved FITS image cards. Additional Gaussian noise can be added by setting  ``add_noise`` to True and either specifying a constant noise level (``scalar_noise_sigma``) or using the uncertainty map (``add_noise=True`` and ``use_uncertainty_map=True``). The details of the PSF can be specified in terms of a beam full width at half maximum (FWHM, ``psf_fwhm``) provided in pixel units (this assumes a Gaussian beam), or as a generic PSF postage stamp. When an empirical PSF estimate is available it can be fed into PCAT using the ``psf_postage_stamp`` keyword. If one wants to run PCAT on a masked version of the image, the most straightforward way to do this is to set all pixels in the uncertainty map to zero/inf/NaN. PCAT will have predicted model values for these pixels, however they are zero-weighted in the likelihood evaluation.
 
 
 
 PCAT sampler parameters/model hyperparameters
 +++++++++++++++++++++++++++++++++++++++++++++
 
-The number of samples is set by ``nsamp`` -- by default the chains are thinned by a factor of ``nloop=1000``, so a run with ``nsamp=4000`` is really :math:`4 \times 10^6` model evaluations. For computational efficiency, it is recommended to set a ``max_nsrc`` for the model. The maximum should be sufficiently far from the bulk of the posterior on Nsrc. Oftentimes if the number of sources is diverging it means something is not correct in the data parsing or the astrometric calibration.
+The number of samples is set by ``nsamp`` -- by default the chains are thinned by a factor of ``nloop=1000``, so a run with ``nsamp=4000`` is really :math:`4 \times 10^6` model evaluations. For computational efficiency, it is recommended to set a ``max_nsrc`` for the model. The maximum should be sufficiently far from the bulk of the posterior on :math:`N_{src}`. Oftentimes if the number of sources is diverging it means something is not correct in the data parsing or the astrometric calibration.
 - Hyperparameters describing model for constant background/mean normalization of maps ("Background Parameters"), any fixed spatial templates ("Template Parameters") and the Fourier component templates ("Fourier Component Parameters").
 - Run time diagnostics/posterior plot details.
 - Optional parameters for computing condensed catalog from posterior samples ("Condensed catalog").
 
-These parameters can be directly modified in the configuration file, or passed as keyword arguments to the lion class instantiation. Model proposals are called many times within the PCAT chains. These are included in the ``Proposal()`` class and are drawn from according to the model components and proposal weights ("moveweights").
+These parameters can be directly modified in the configuration file, or passed as keyword arguments to the ``lion`` class instantiation. Model proposals are called many times within the PCAT chains. These are included in the ``Proposal()`` class and are drawn from according to the model components and proposal weights ("moveweights").
 
 Data parsing/Map pre-processing parameters
 ++++++++++++++++++++++++++++++++++++++++++
@@ -111,7 +111,7 @@ Verifying the proper convergence of PCAT can be done by inspecting the posterior
 
 - The chi squared of the samples and the reduced chi squared statistics.
 - Pixel-wise residual maps
-- Number of sources. Does the posterior on Nsrc reside well within the range of :math:`[N_{min}, N_{max}]`?
+- Number of sources. Does the posterior on :math:`N_{src}` reside well within the range of :math:`[N_{min}, N_{max}]`?
 - If running on several maps (e.g., multiband data), a consistent astrometric reference frame across images (along with consistent trimming of maps)
 - Acceptance fractions for different proposals. If these are too low, it may suggest the model has not converged. If they are too high, it may suggest the proposal kernels are too narrow, such the delta log posterior between models is close to zero.
 
