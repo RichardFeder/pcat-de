@@ -225,7 +225,7 @@ def load_in_map(gdat, file_path=None, band=0, astrom=None, show_input_maps=False
 
 
 
-def load_param_dict(timestr=None, result_path=None, encoding=None):
+def load_param_dict(param_filepath=None, timestr=None, result_dir=None, encoding=None):
 	
 	"""
 	Loads dictionary of configuration parameters from prior run of PCAT.
@@ -236,9 +236,9 @@ def load_param_dict(timestr=None, result_path=None, encoding=None):
 	timestr : string
 		time string associated with desired PCAT run.
 
-	result_path : string, optional
-		file location of PCAT run results.
-		Default is '/Users/luminatech/Documents/multiband_pcat/spire_results/'.
+	result_dir : string, optional
+		Directory location of PCAT run results.
+		Default is None.
 
 	Returns
 	-------
@@ -248,24 +248,28 @@ def load_param_dict(timestr=None, result_path=None, encoding=None):
 	filepath : string
 		file path of parameter file
 
-	result_path : string
-		file location of PCAT run results. not sure why its here
 
 	"""
 
-	if result_path is None:
-		result_path = config.result_path
-	filepath = result_path
-	if timestr is not None:
-		filepath += timestr
-	filen = open(filepath+'/params.txt','rb')
+	if param_filepath is None:
+		if result_dir is None:
+			result_dir = config.result_dir
+		param_filepath = result_dir
+		if timestr is not None:
+			param_filepath += timestr
+
+		param_filepath += '/params.txt'
+
+
+	filen = open(param_filepath,'rb')
+	
 	if encoding is not None:
 		pdict = pickle.load(filen, encoding=encoding)
 	else:
 		pdict = pickle.load(filen)
 	opt = objectview(pdict) 
-
-	return opt, filepath, result_path
+	
+	return opt, param_filepath
 
 
 
@@ -308,7 +312,7 @@ class pcat_data():
 
 		self.gdat = gdat
 
-		gdat.regsizes, gdat.margins, gdat.bounds,\
+		# gdat.regsizes, gdat.margins, gdat.bounds,\
 		 
 		self.gdat.imszs, self.gdat.imszs_orig = [np.zeros((self.gdat.nbands, 2)) for x in range(2)]
 		self.gdat.x_max_pivot_list, self.gdat.x_max_pivot_list = [np.zeros((self.gdat.nbands)) for x in range(2)]
@@ -348,9 +352,11 @@ class pcat_data():
 		for t, template_name in enumerate(self.gdat.template_names):
 
 			verbprint(self.gdat.verbtype, 'template name is ', template_name, verbthresh=1)
-			if self.gdat.band_dict[band] in config.template_bands_dict[template_name]:
+			# if self.gdat.band_dict[band] in config.template_bands_dict[template_name]:
 				
-				verbprint(self.gdat.verbtype, 'Band, template band, lambda: '+str(self.gdat.band_dict[band])+', '+str(config.template_bands_dict[template_name])+', '+str(self.gdat.lam_dict[self.gdat.band_dict[band]]), verbthresh=1)
+			if self.gdat.band_dict[band] in self.gdat.template_bands_dict[template_name]:
+				# verbprint(self.gdat.verbtype, 'Band, template band, lambda: '+str(self.gdat.band_dict[band])+', '+str(config.template_bands_dict[template_name])+', '+str(self.gdat.lam_dict[self.gdat.band_dict[band]]), verbthresh=1)
+				verbprint(self.gdat.verbtype, 'Band, template band, lambda: '+str(self.gdat.band_dict[band])+', '+str(self.gdat.template_bands_dict[template_name])+', '+str(self.gdat.lam_dict[self.gdat.band_dict[band]]), verbthresh=1)
 
 				template = fits.open(template_file_names[t])[template_name].data
 				if show_input_maps:
@@ -360,7 +366,7 @@ class pcat_data():
 					template *= sb_scale_facs[t]
 
 			else:
-				print('no band in config.template_bands_dict')
+				print('no band in template_bands_dict')
 				template = None
 
 			template_list.append(template)
@@ -393,10 +399,10 @@ class pcat_data():
 
 		# these conversion factors are necessary to convert the SPIRE data from MJy/sr to peak-normalized Jansky/beam. 
 		if sb_conversion_dict is None:
-			sb_conversion_dict = config.sb_conversion_dict
+			sb_conversion_dict = self.gdat.sb_conversion_dict
 
 		if temp_mock_amps_dict is None:
-			temp_mock_amps_dict = config.temp_mock_amps_dict
+			temp_mock_amps_dict = self.gdat.temp_mock_amps_dict
 
 		for b, band in enumerate(self.gdat.bands):
 			image, uncertainty_map, mask, file_name = load_in_map(self.gdat, band, astrom=self.fast_astrom, show_input_maps=self.gdat.show_input_maps, image_extnames=self.gdat.image_extnames)

@@ -11,14 +11,16 @@ import time
 import os
 import sys
 import config
+import params
 import warnings
 import scipy.stats as stats
 from scipy.ndimage import gaussian_filter
 
+from types import ModuleType
 
 from image_eval import psf_poly_fit, image_model_eval
 from fast_astrom import *
-import pickle
+# import pickle
 from pcat_load_data import *
 from pcat_utils import *
 from plotting_fns import *
@@ -283,7 +285,7 @@ class Model:
 		self.run_moveweights = np.array([0. for x in range(len(self.gdat.moveweight_byprop.keys()))]) # fourier comp, movestar. weights are specified in lion __init__()
 		print('run moveweights is ', self.run_moveweights)
 		self.run_movetypes = [self.gdat.print_movetypes[move] for move in self.gdat.print_movetypes.keys()]
-		self.temp_amplitude_sigs = config.temp_amplitude_sigs
+		self.temp_amplitude_sigs = self.gdat.temp_amplitude_sigs
 
 		# if self.gdat.sz_amp_sig is not None:
 			# self.temp_amplitude_sigs['sze'] = self.gdat.sz_amp_sig
@@ -441,9 +443,9 @@ class Model:
 
 		"""
 
-		catpath = self.gdat.result_path+'/'+self.gdat.load_state_timestr+'/final_state.npz'
+		catpath = self.gdat.result_basedir+self.gdat.load_state_timestr+'/final_state.npz'
 		catload = np.load(catpath)
-		gdat_previous, _, _ = load_param_dict(self.gdat.load_state_timestr, result_path=self.gdat.result_path)
+		gdat_previous, param_filepath = load_param_dict(self.gdat.load_state_timestr, result_basedir=self.gdat.result_basedir)
 		previous_cat = catload['cat']
 
 		self.n = np.count_nonzero(previous_cat[self._F,:])
@@ -500,7 +502,7 @@ class Model:
 		proposal_bool_dict = dict({'movestar':True, 'birth_death':True, 'merge_split':True, 'bkg':self.gdat.float_background, 'template':self.gdat.float_templates, 'fc':self.gdat.float_fourier_comps, 'bcib':self.gdat.float_cib_templates})
 		# key_list, val_list = list(.keys()), list(moveweight_idx_dict.values())
 		for k, movekey in enumerate(proposal_bool_dict.keys()):
-			if j == self.sample_delay_byprop[movekey] and proposal_bool_dict[movekey]
+			if j == self.sample_delay_byprop[movekey] and proposal_bool_dict[movekey]:
 				self.run_moveweights[movekey] = self.gdat.moveweight_byprop[movekey]
 				self.run_moveweights[np.isnan(self.run_moveweights)] = 0.
 				print('Proposal weights: ', self.moveweights, file=self.gdat.flog)
@@ -2018,7 +2020,7 @@ class Samples():
 				self.residuals[b][-(self.gdat.nsamp-j),:,:] = resids[b] 
 				self.model_images[b][-(self.gdat.nsamp-j),:,:] = model_images[b]
 
-	def save_samples(self, result_path, timestr):
+	def save_samples(self, run_dir, result_basedir=None, timestr=None):
 
 		""" 
 		Save chain parameters/metadata with numpy compressed file. 
@@ -2028,7 +2030,7 @@ class Samples():
 		
 		Parameters
 		----------
-		result_path : 'str'. Path to result directory.
+		result_basedir : 'str'. Path to result directory.
 		timestr : 'str'. Timestring used to save the run (maybe make it possible to customize name?)
 
 		"""
@@ -2046,15 +2048,15 @@ class Samples():
 		residuals0, model_images0 = self.residuals[0], self.model_images[0]
 
 		# for b in range(self.nbands):
-		# 	np.savez(result_path+'/'+str(timestr)+'/model_image_samples_band'+str(b)+'.npz', model_images=model_images[b], obs_map=obs_maps[b])
+		# 	np.savez(result_basedir+'/'+str(timestr)+'/model_image_samples_band'+str(b)+'.npz', model_images=model_images[b], obs_map=obs_maps[b])
 		
-		# np.savez(result_path + '/' + str(timestr) + '/proposal_stats.npz', rtypes=self.rtypes, times=self.timestats, accepts=self.accept_all, accept=self.accept_stats)
+		# np.savez(result_basedir + '/' + str(timestr) + '/proposal_stats.npz', rtypes=self.rtypes, times=self.timestats, accepts=self.accept_all, accept=self.accept_stats)
 
-		# np.savez(result_path + '/' + str(timestr) + '/chain.npz', n=self.nsample, x=self.xsample, y=self.ysample, f=self.fsample, \
+		# np.savez(result_basedir + '/' + str(timestr) + '/chain.npz', n=self.nsample, x=self.xsample, y=self.ysample, f=self.fsample, \
 		# 	chi2=self.chi2sample, diff2s=self.diff2_all, bkg=self.bkg_sample, template_amplitudes=self.template_amplitudes, \
 		# 	fourier_coeffs=self.fourier_coeffs, fc_rel_amps=self.fc_rel_amps, binned_cib_coeffs=self.binned_cib_coeffs)
 		
-		np.savez(result_path + '/' + str(timestr) + '/chain.npz', n=self.nsample, x=self.xsample, y=self.ysample, f=self.fsample, \
+		np.savez(run_dir + '/chain.npz', n=self.nsample, x=self.xsample, y=self.ysample, f=self.fsample, \
 			chi2=self.chi2sample, times=self.timestats, accept=self.accept_stats, diff2s=self.diff2_all, rtypes=self.rtypes, \
 			accepts=self.accept_all, residuals0=residuals0, residuals1=residuals1, residuals2=residuals2, model_images0=model_images0,\
 			model_images1=model_images1, model_images2=model_images2, bkg=self.bkg_sample, template_amplitudes=self.template_amplitudes, \
@@ -2075,144 +2077,207 @@ class lion():
 	gdat = gdatstrt()
 
 	def __init__(self, **kwargs):
-			
-		for attr, valu in locals().items():
+
+
+		param_file_items = [item for item in dir(params) if not item.startswith("__")]
+
+		for attr, valu in kwargs.items():
 			if '__' not in attr and attr != 'gdat':
 				setattr(self.gdat, attr, valu)
+
+		gdat_vars = vars(self.gdat)
+		if 'load_param_file' not in gdat_vars.keys():
+			print("load param file not found in self.gdat keys")
+			self.gdat.load_param_file = getattr(params, 'load_param_file')
+		if 'param_filepath' not in gdat_vars.keys():
+			print("param_filepath not found in self.gdat keys")
+			self.gdat.param_filepath = getattr(params, 'param_filepath')
+
+		print("self.gdat.load_param_file, self.gdat.param_filepath = ", self.gdat.load_param_file, self.gdat.param_filepath)
+		
+		if self.gdat.load_param_file:
+			print('Loading parameter file from '+str(self.gdat.param_filepath)+'..')
+			load_gdat, param_filepath = load_param_dict(param_filepath=self.gdat.param_filepath)
+		
+			load_gdat_vars = vars(load_gdat)
+			for load_key in load_gdat_vars.keys():
+				setattr(self.gdat, load_key, load_gdat_vars[load_key])
+
+			self.gdat.timestr = time.strftime("%Y%m%d-%H%M%S")
+
+		else:
+			# load parameters from params.py
+			for name in param_file_items:
+				valu = getattr(params, name)
+				if not isinstance(valu, ModuleType):
+					setattr(self.gdat, name, valu)
+
+			self.gdat.bands = [b for b in np.array([self.gdat.band0, self.gdat.band1, self.gdat.band2]) if b is not None]
+			self.gdat.nbands = len(self.gdat.bands)
+
+			if self.gdat.psf_fwhms is None:
+				self.gdat.psf_fwhms = [self.gdat.psf_pixel_fwhm for i in range(self.gdat.nbands)]
+
+			self.gdat.N_eff = 4*np.pi*(self.gdat.psf_fwhms[0]/2.355)**2 # using pivot band fwhm
+
+			# point src delay controls when all point source proposals begin
+			if self.gdat.point_src_delay is not None:
+				for movestr in ['movestar', 'birth_death', 'merge_split']:
+					self.gdat.moveweight_dict[movestr] = self.gdat.point_src_delay
+
+			self.gdat.timestr = time.strftime("%Y%m%d-%H%M%S")
+
+			# power law exponents equal to 1 in double power law will cause a numerical error.
+			if self.gdat.alpha_1 == 1.0 and self.flux_prior_type=='double_power_law':
+				self.gdat.alpha_1 += 0.01
+			if self.gdat.alpha_2 == 1.0 and self.flux_prior_type=='double_power_law':
+				self.gdat.alpha_2 += 0.01
+			
+			if self.gdat.template_names is not None:
+				self.gdat.n_templates=len(self.gdat.template_names)
+
+			if self.gdat.mean_offsets is None:
+				self.gdat.mean_offsets = np.zeros_like(np.array(self.gdat.bands))
+
+			if type(self.gdat.bkg_sig_fac)==float: # if single number, make bkg_sig_fac an array length nbands where each band has same factor
+				sigfacs = [self.gdat.bkg_sig_fac for b in range(self.gdat.nbands)]
+				self.gdat.bkg_sig_fac = np.array(sigfacs).copy()
+
+			if self.gdat.temp_prop_sig_fudge_facs is None:
+				self.gdat.temp_prop_sig_fudge_facs = [1. for b in range(self.gdat.nbands)]
+
+			# fourier comp colors
+			fourier_band_idxs = [0, 1, 2]
+
+			self.gdat.template_order = []
+			self.gdat.template_band_idxs = np.zeros(shape=(self.gdat.n_templates, self.gdat.nbands))
+
+			if self.gdat.template_names is not None:
+				for i, temp_name in enumerate(self.gdat.template_names):		
+					for b, band in enumerate(self.gdat.bands):
+						if band in template_band_idxs[temp_name]:
+							self.gdat.template_band_idxs[i,b] = band
+						else:
+							self.gdat.template_band_idxs[i,b] = None
+					self.gdat.template_order.append(temp_name)
+
+			self.gdat.regions_factor = 1./float(self.gdat.nregion**2)
 
 		#if specified, use seed for random initialization
 		if self.gdat.init_seed is not None:
 			np.random.seed(self.gdat.init_seed)
 
-		self.gdat.bands = [b for b in np.array([self.gdat.band0, self.gdat.band1, self.gdat.band2]) if b is not None]
-		self.gdat.nbands = len(self.gdat.bands)
 
-		if self.gdat.psf_fwhms is None:
-			self.gdat.psf_fwhms = [self.gdat.psf_pixel_fwhm for i in range(self.gdat.nbands)]
+		if self.gdat.init_data_and_modl:
+			verbprint(self.gdat.verbtype, 'Initializing pcat_data class object and loading in data..', verbthresh=1)
+			self.data = pcat_data(self.gdat, self.gdat.auto_resize, self.gdat.nregion)
+			self.data.load_in_data(show_input_maps=self.gdat.show_input_maps)
 
-		self.gdat.N_eff = 4*np.pi*(self.gdat.psf_fwhms[0]/2.355)**2 # using pivot band fwhm
+			# initialize CIB templates if used
+			# if self.gdat.float_cib_templates:
+			# 	print('Initializing binned CIB templates..')
+			# 	dimxs_resize = [self.gdat.imszs[b][0] for b in range(self.gdat.nbands)]
+			# 	dimys_resize = [self.gdat.imszs[b][1] for b in range(self.gdat.nbands)]
+			# 	dimxs = [self.gdat.imszs_orig[b][0] for b in range(self.gdat.nbands)]
+			# 	dimys = [self.gdat.imszs_orig[b][1] for b in range(self.gdat.nbands)]
+			# 	print('dimxs resize is ', dimxs_resize)
+			# 	print('while original dimensions are ', dimxs)
+			# 	self.gdat.coarse_cib_templates = generate_subregion_cib_templates(dimxs, dimys, self.gdat.cib_nregion, dimxs_resize=dimxs_resize, dimys_resize=dimys_resize)
+			# 	if self.gdat.show_input_maps:
+			# 		for b in range(self.gdat.nbands):
+			# 			plot_single_map(self.gdat.coarse_cib_templates[b][0], title='b = '+str(b))
 
-		# point src delay controls when all point source proposals begin
-		if self.gdat.point_src_delay is not None:
-			for movestr in ['movestar', 'birth_death', 'merge_split']:
-				self.gdat.moveweight_dict[movestr] = self.gdat.point_src_delay
+			# in case of severe crowding, can scale parsimony prior using F statistic 
+			if self.gdat.F_statistic_alph:
+				alph = compute_Fstat_alph(self.gdat.imszs, self.gdat.nbands, self.gdat.nominal_nsrc)
+				self.gdat.alph = alph
+				print('Regularization prior (per degree of freedom) computed from the F-statistic with '+str(self.gdat.nominal_nsrc)+' sources is '+str(np.round(alph, 3)))
 
-		self.gdat.band_dict = config.band_dict # for accessing different wavelength filenames
-		self.gdat.pixsize_dict = config.pixsize_dict
-
-		if self.gdat.color_sigs is None:
-			self.gdat.color_sigs = config.color_sigs
-		if self.gdat.color_mus is None:
-			self.gdat.color_mus = config.color_mus
-
-		self.gdat.timestr = time.strftime("%Y%m%d-%H%M%S")
-
-		# power law exponents equal to 1 in double power law will cause a numerical error.
-		if self.gdat.alpha_1 == 1.0 and self.flux_prior_type=='double_power_law':
-			self.gdat.alpha_1 += 0.01
-		if self.gdat.alpha_2 == 1.0 and self.flux_prior_type=='double_power_law':
-			self.gdat.alpha_2 += 0.01
-		
-		if self.gdat.template_names is not None:
-			self.gdat.n_templates=len(self.gdat.template_names)
-
-		if self.gdat.mean_offsets is None:
-			self.gdat.mean_offsets = np.zeros_like(np.array(self.gdat.bands))
-
-		if type(self.gdat.bkg_sig_fac)==float: # if single number, make bkg_sig_fac an array length nbands where each band has same factor
-			sigfacs = [self.gdat.bkg_sig_fac for b in range(self.gdat.nbands)]
-			self.gdat.bkg_sig_fac = np.array(sigfacs).copy()
-
-		if self.gdat.temp_prop_sig_fudge_facs is None:
-			self.gdat.temp_prop_sig_fudge_facs = [1. for b in range(self.gdat.nbands)]
-
-		template_band_idxs = config.template_band_idxs
-		# template_band_idxs = dict({'sze':[0, 1, 2], 'sze':[0,1,2], 'lensing':[0, 1, 2], 'dust':[0, 1, 2], 'planck':[0,1,2], 'cib':[0, 1, 2]})
-
-		# fourier comp colors
-		fourier_band_idxs = [0, 1, 2]
-
-		self.gdat.template_order = []
-		self.gdat.template_band_idxs = np.zeros(shape=(self.gdat.n_templates, self.gdat.nbands))
-
-		if self.gdat.template_names is not None:
-			for i, temp_name in enumerate(self.gdat.template_names):		
-				for b, band in enumerate(self.gdat.bands):
-					if band in template_band_idxs[temp_name]:
-						self.gdat.template_band_idxs[i,b] = band
-					else:
-						self.gdat.template_band_idxs[i,b] = None
-				self.gdat.template_order.append(temp_name)
-
-		self.gdat.regions_factor = 1./float(self.gdat.nregion**2)
-		self.data = pcat_data(self.gdat, self.gdat.auto_resize, self.gdat.nregion)
-		self.data.load_in_data(show_input_maps=self.gdat.show_input_maps)
-
-		# initialize CIB templates if used
-		# if self.gdat.float_cib_templates:
-		# 	print('Initializing binned CIB templates..')
-		# 	dimxs_resize = [self.gdat.imszs[b][0] for b in range(self.gdat.nbands)]
-		# 	dimys_resize = [self.gdat.imszs[b][1] for b in range(self.gdat.nbands)]
-		# 	dimxs = [self.gdat.imszs_orig[b][0] for b in range(self.gdat.nbands)]
-		# 	dimys = [self.gdat.imszs_orig[b][1] for b in range(self.gdat.nbands)]
-		# 	print('dimxs resize is ', dimxs_resize)
-		# 	print('while original dimensions are ', dimxs)
-		# 	self.gdat.coarse_cib_templates = generate_subregion_cib_templates(dimxs, dimys, self.gdat.cib_nregion, dimxs_resize=dimxs_resize, dimys_resize=dimys_resize)
-		# 	if self.gdat.show_input_maps:
-		# 		for b in range(self.gdat.nbands):
-		# 			plot_single_map(self.gdat.coarse_cib_templates[b][0], title='b = '+str(b))
-
-		# in case of severe crowding, can scale parsimony prior using F statistic 
-		if self.gdat.F_statistic_alph:
-			alph = compute_Fstat_alph(self.gdat.imszs, self.gdat.nbands, self.gdat.nominal_nsrc)
-			self.gdat.alph = alph
-			print('Regularization prior (per degree of freedom) computed from the F-statistic with '+str(self.gdat.nominal_nsrc)+' sources is '+str(np.round(alph, 3)))
-
-		if self.gdat.float_fourier_comps:
-			print('float_fourier_comps set to True, initializing Fourier component model..')
-			# if there are previous fourier components, use those
-			if self.gdat.init_fourier_coeffs is not None:
-				if self.gdat.fourier_order != self.gdat.init_fourier_coeffs.shape[0]:
-					self.gdat.fourier_order = self.gdat.init_fourier_coeffs.shape[0]
-			else:
-				self.gdat.init_fourier_coeffs = np.zeros((self.gdat.fourier_order, self.gdat.fourier_order, 4))
-
-			self.gdat.fc_templates = multiband_fourier_templates(self.gdat.imszs, self.gdat.fourier_order, psf_fwhms=self.gdat.psf_fwhms, x_max_pivot_list=self.gdat.x_max_pivot_list, scale_fac=None)
-			self.gdat.fourier_band_idxs = [None for b in range(self.gdat.nbands)]
-
-			# if no fourier comp amplitudes specified set them all to unity
-			if self.gdat.fc_rel_amps is None:
-				self.gdat.fc_rel_amps = np.ones(shape=(self.gdat.nbands,))
-
-			for b, band in enumerate(self.gdat.bands):
-				if band in fourier_band_idxs:
-					self.gdat.fourier_band_idxs[b] = band
+			if self.gdat.float_fourier_comps:
+				print('float_fourier_comps set to True, initializing Fourier component model..')
+				# if there are previous fourier components, use those
+				if self.gdat.init_fourier_coeffs is not None:
+					if self.gdat.fourier_order != self.gdat.init_fourier_coeffs.shape[0]:
+						self.gdat.fourier_order = self.gdat.init_fourier_coeffs.shape[0]
 				else:
-					self.gdat.fourier_band_idxs[b] = None
+					self.gdat.init_fourier_coeffs = np.zeros((self.gdat.fourier_order, self.gdat.fourier_order, 4))
 
-		if self.gdat.bkg_level is None:
-			self.gdat.bkg_level = np.zeros((self.gdat.nbands,))
-			for b, band in enumerate(self.gdat.bands):
-				median_val = np.median(self.data.data_array[b])
-				self.gdat.bkg_level[b] = median_val # background will initially be biased high
-				# self.gdat.bkg_level[b] = median_val - 0.003 # subtract by 3 mJy/beam since background level is biased high by sources # specific to SPIRE obs
-			
-		print('Initial background levels set to ', self.gdat.bkg_level)
+				self.gdat.fc_templates = multiband_fourier_templates(self.gdat.imszs, self.gdat.fourier_order, psf_fwhms=self.gdat.psf_fwhms, x_max_pivot_list=self.gdat.x_max_pivot_list, scale_fac=None)
+				self.gdat.fourier_band_idxs = [None for b in range(self.gdat.nbands)]
+
+				# if no Fourier comp amplitudes specified set them all to unity
+				if self.gdat.fc_rel_amps is None:
+					self.gdat.fc_rel_amps = np.ones(shape=(self.gdat.nbands,))
+
+				if self.gdat.fourier_band_idxs is None:
+					self.gdat.fourier_band_idxs = np.arange(self.gdat.nbands)
+
+			if self.gdat.bkg_level is None:
+				self.gdat.bkg_level = np.zeros((self.gdat.nbands,))
+				for b, band in enumerate(self.gdat.bands):
+					median_val = np.median(self.data.data_array[b])
+					self.gdat.bkg_level[b] = median_val # background will initially be biased high by point sources
+				
+				print('Initial background levels set to ', self.gdat.bkg_level)
+
+
 
 		if self.gdat.save_outputs:
-			#create directory for results, save config file from run
-			frame_dir, newdir, timestr = create_directories(self.gdat)
-			self.gdat.timestr = timestr
-			self.gdat.frame_dir = frame_dir
-			self.gdat.newdir = newdir
-			save_params(newdir, self.gdat)
+
+			#create directory for results, save config files for run
+			self.gdat.frame_dir, self.gdat.run_dir, self.gdat.timestr = create_directories(self.gdat)
+
+			verbprint(self.gdat.verbtype, 'save_outputs=True, making dedicated directory and saving in '+str(self.gdat.run_dir))
+
+			if self.gdat.save_param_file:
+				self.save_parameter_file(param_filepath=self.gdat.run_dir+'/'+self.gdat.param_filepath, \
+										param_read_filepath=self.gdat.run_dir+'/'+self.gdat.param_read_filepath)
+
 
 	def initialize_print_log(self):
 		if self.gdat.print_log:
-			self.gdat.flog = open(self.gdat.result_path+'/'+self.gdat.timestr+'/print_log.txt','w')
+			self.gdat.flog = open(self.gdat.run_dir+'/print_log.txt','w')
 		else:
 			self.gdat.flog = None		
 
+	def save_parameter_file(self, param_filepath=None, param_read_filepath=None):
+
+		""" 
+		Save parameters as dictionary, then pickle them to .txt file. This also produces a more human-readable file, params_read.txt. 
+		This is an in place operation. 
+
+		Parameters
+		----------
+
+		directory : 'str'. MCMC run result directory to store parameter configuration file.
+		gdat : global data object used by PCAT.
+		"""
+
+		if param_filepath is None:
+			param_filepath = self.gdat.param_filepath
+		if param_read_filepath is None:
+			param_read_filepath = self.gdat.param_read_filepath
+
+		assert param_filepath is not None
+		assert param_read_filepath is not None
+
+		param_dict = vars(self.gdat).copy()
+		param_dict['fc_templates'] = None # these take up too much space and not necessary
+		param_dict['truth_catalog'] = None 
+
+		with open(param_filepath, 'wb') as file:
+			file.write(pickle.dumps(param_dict))
+		file.close()
+
+		with open(param_read_filepath, 'w') as file2:
+			for key in param_dict:
+				file2.write(key+': '+str(param_dict[key])+'\n')
+		file2.close()
+
+		return param_filepath, param_read_filepath
+
+	def initialize_data_obj(self):
+		pass
 
 	def main(self):
 		""" 
@@ -2261,7 +2326,6 @@ class lion():
 
 				fc_marg_counter += 1
 
-			
 			# once ready to sample, recompute proposal weights
 			model.update_moveweights(j)
 
@@ -2271,12 +2335,13 @@ class lion():
 
 		if self.gdat.save_outputs:
 			print('Saving...', file=self.gdat.flog)
-
 			# save catalog ensemble and other diagnostics
-			samps.save_samples(self.gdat.result_path, self.gdat.timestr)
-
+			samps.save_samples(self.gdat.run_dir)
 			# save final catalog state
-			np.savez(self.gdat.result_path + '/'+str(self.gdat.timestr)+'/final_state.npz', cat=model.stars, bkg=model.bkg, templates=model.template_amplitudes, fourier_coeffs=model.fourier_coeffs)
+			np.savez(self.gdat.run_dir+'/final_state.npz', cat=model.stars, bkg=model.bkg, templates=model.template_amplitudes, fourier_coeffs=model.fourier_coeffs)
+
+			# samps.save_samples(self.gdat.run_dir, self.gdat.result_basedir, self.gdat.timestr)
+
 
 		if self.gdat.timestr_list_file is not None:
 			if os.path.exists(self.gdat.timestr_list_file):
@@ -2299,7 +2364,7 @@ class lion():
 		print('Full Run Time (s):', np.round(dt_total,3), file=self.gdat.flog)
 		print('Time String:', str(self.gdat.timestr), file=self.gdat.flog)
 
-		with open(self.gdat.newdir+'/time_elapsed.txt', 'w') as filet:
+		with open(self.gdat.run_dir+'/time_elapsed.txt', 'w') as filet:
 			filet.write('time elapsed: '+str(np.round(dt_total,3))+'\n')
 
 		plt.close() # I think this is for result plots

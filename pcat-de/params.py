@@ -14,10 +14,17 @@ These parameters can be broken down into the following groups:
 
  '''
 
+import numpy as np
+import config
+
 # ---------------------- parameters unique to SPIRE data -----------------------------
 
 sb_conversion_dict = dict({'S': 86.29e-4, 'M':16.65e-3, 'L':34.52e-3})
 temp_mock_amps_dict = dict({'S':0.03, 'M': 0.2, 'L': 0.8}) # MJy/sr, this was for RXJ1347
+
+band_dict = dict({0:'S',1:'M',2:'L'}) # for accessing different wavelength filenames
+lam_dict = dict({'S':250, 'M':350, 'L':500})
+pixsize_dict = dict({'S':6., 'M':8., 'L':12.})
 
 spire_bands = ['S', 'M', 'L']
 nbl = np.arange(len(spire_bands))
@@ -25,6 +32,8 @@ fourier_band_idxs = nbl.copy()
 template_bands_dict = dict({'sze':['M', 'L']}) # should just integrate with the same thing in Lion main
 
 template_band_idxs_dict = dict({'sze':nbl, 'cib':nbl})
+
+fourier_band_idxs = None # if left unspecified, assume user wants Fourier component templates fit across all bands
 temp_amplitude_sigs = dict({'sze':0.001, 'fc':0.001, 'binned_cib':0.0005}) # binned cib
 sz_amp_sig = None
 
@@ -44,7 +53,7 @@ openblas=False
 # Configure these for individual directory structure
 # config
 base_path = config.base_path
-result_path = config.result_path
+result_basedir = config.result_basedir
 
 data_path = None
 # the tail name can be configured when reading files from a specific dataset if the name space changes.
@@ -57,9 +66,17 @@ im_fpath = None
 err_fpath = None
 dataname = None
 # filepath for previous catalog if using as an initial state. loads in .npy files
-load_state_timestr = None
+load_state_timestr = None 
 # set flag to True if you want posterior plots/catalog samples/etc from run saved
 save_outputs = True
+# initialize data object 
+init_data_and_modl = True
+
+# can specify these either to save parameter files (save_param_file=True) or to load them for another run (load_param_file=True)
+save_param_file = True
+load_param_file = False
+param_filepath = 'params.txt'
+param_read_filepath = 'params_read.txt'
 
 image_extnames=['SIGNAL']
 uncertainty_map_extname = 'ERROR'
@@ -130,7 +147,7 @@ nregion = 5
 # used when splitting sources and determining colors of resulting objects
 split_col_sig = 0.2
 # power law type
-flux_prior_type = 'single_power_law', \
+flux_prior_type = 'single_power_law'
 # number counts single power law slope for sources
 truealpha = 3.0
 # minimum flux allowed in fit for sources (in Jy)
@@ -140,9 +157,9 @@ alpha_1 = 1.01
 alpha_2 = 3.5
 pivot_dpl = 0.01
 
-# these two, if specified, should be dictionaries with the color prior mean and width (assuming Gaussian)
-color_mus = None
-color_sigs = None
+# # these two, if specified, should be dictionaries with the color prior mean and width (assuming Gaussian)
+# color_mus = None
+# color_sigs = None
 
 temp_prop_sig_fudge_facs = None
 

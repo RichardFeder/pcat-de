@@ -3,12 +3,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from scipy.fftpack import fft, ifft
-import networkx as nx
+# import networkx as nx
 from matplotlib.collections import PatchCollection
 import matplotlib.patches as patches
 from PIL import Image
 import sys
-import pandas as pd
 from pcat_main import *
 # from spire_roc_condensed_cat import *
 from diffuse_gen import *
@@ -82,8 +81,8 @@ def condensed_catalog_overlaid_data(images, all_xs, all_ys, all_fs=None, bands=N
 		return f
 
 def grab_extent(bins_var1, bins_var2):
-    extent = [bins_var1[0], bins_var1[-1], bins_var2[0], bins_var2[-1]]
-    return extent
+	extent = [bins_var1[0], bins_var1[-1], bins_var2[0], bins_var2[-1]]
+	return extent
 
 def plot_atcr(listsamp, title):
 
@@ -111,46 +110,46 @@ def plot_atcr(listsamp, title):
 	return figr
 
 def plot_atcr_multichain(listsamp, title=None, alpha=1.0, show=False):
-    """ Plot ensemble of chain autocorrelation functions """
+	""" Plot ensemble of chain autocorrelation functions """
 
-    figr, axis = plt.subplots(figsize=(6,4))
-    if title is not None:
-        plt.title(title, fontsize=16)
-    
-    if np.ndim(listsamp) == 1:
-        listsamp = [listsamp]
-        
-    timeatcr_list = np.zeros((len(listsamp),))
-    autocorrs = []
-    for s, samp in enumerate(listsamp):
-        
-        numbsamp = samp.shape[0]
-        four = fft(samp - np.mean(samp, axis=0), axis=0)
-        atcr = ifft(four * np.conjugate(four), axis=0).real
-        atcr /= np.amax(atcr, 0)
+	figr, axis = plt.subplots(figsize=(6,4))
+	if title is not None:
+		plt.title(title, fontsize=16)
+	
+	if np.ndim(listsamp) == 1:
+		listsamp = [listsamp]
+		
+	timeatcr_list = np.zeros((len(listsamp),))
+	autocorrs = []
+	for s, samp in enumerate(listsamp):
+		
+		numbsamp = samp.shape[0]
+		four = fft(samp - np.mean(samp, axis=0), axis=0)
+		atcr = ifft(four * np.conjugate(four), axis=0).real
+		atcr /= np.amax(atcr, 0)
 
-        autocorr = atcr[:int(numbsamp/2), ...]
-        autocorrs.append(autocorr)
-        indxatcr = np.where(autocorr > 0.2)
-        timeatcr = np.argmax(indxatcr[0], axis=0)
-        timeatcr_list[s] = timeatcr
-        numbsampatcr = autocorr.size
-        axis.plot(np.arange(numbsampatcr), autocorr, alpha=alpha, color='k')
+		autocorr = atcr[:int(numbsamp/2), ...]
+		autocorrs.append(autocorr)
+		indxatcr = np.where(autocorr > 0.2)
+		timeatcr = np.argmax(indxatcr[0], axis=0)
+		timeatcr_list[s] = timeatcr
+		numbsampatcr = autocorr.size
+		axis.plot(np.arange(numbsampatcr), autocorr, alpha=alpha, color='k')
 
-    axis.set_xlabel(r'$\tau$', fontsize=16)
-    axis.set_ylabel(r'$\\xi(\tau)$', fontsize=16)
+	axis.set_xlabel(r'$\tau$', fontsize=16)
+	axis.set_ylabel(r'$\\xi(\tau)$', fontsize=16)
 
-    if len(listsamp) > 1:
-        axis.text(0.8, 0.8, r'$\overline{\tau}_{exp} = %.3g$' % np.median(timeatcr_list), ha='center', va='center', transform=axis.transAxes, fontsize=16)
-    else:
-        axis.text(0.8, 0.8, r'$\tau_{exp} = %.3g$' % timeatcr, ha='center', va='center', transform=axis.transAxes, fontsize=16)
-    axis.axhline(0., ls='--', alpha=0.5)
-    plt.tight_layout()
+	if len(listsamp) > 1:
+		axis.text(0.8, 0.8, r'$\overline{\tau}_{exp} = %.3g$' % np.median(timeatcr_list), ha='center', va='center', transform=axis.transAxes, fontsize=16)
+	else:
+		axis.text(0.8, 0.8, r'$\tau_{exp} = %.3g$' % timeatcr, ha='center', va='center', transform=axis.transAxes, fontsize=16)
+	axis.axhline(0., ls='--', alpha=0.5)
+	plt.tight_layout()
 
-    if show:
-    	plt.show()
+	if show:
+		plt.show()
 
-    return figr, np.arange(numbsampatcr), autocorrs
+	return figr, np.arange(numbsampatcr), autocorrs
 
 
 
@@ -661,27 +660,27 @@ def plot_fourier_coeffs_sample_chains(fourier_coeffs, show=False):
 	return f
 
 def plot_mp_fit(temp_A_hat, n_terms, A_hat, data):
-    plt.figure(figsize=(10,10))
-    plt.suptitle('Moore-Penrose inverse, $N_{FC}$='+str(n_terms), fontsize=20, y=1.02)
-    plt.subplot(2,2,1)
-    plt.title('Background estimate', fontsize=18)
-    plt.imshow(temp_A_hat, origin='lower', cmap='Greys', vmax=np.percentile(temp_A_hat, 99), vmin=np.percentile(temp_A_hat, 1))
-    plt.colorbar(fraction=0.046, pad=0.04)
-    plt.subplot(2,2,2)
-    plt.hist(np.abs(A_hat), bins=np.logspace(-5, 1, 30))
-    plt.xscale('log')
-    plt.xlabel('Absolute value of Fourier coefficients', fontsize=14)
-    plt.ylabel('N')
-    plt.subplot(2,2,3)
-    plt.title('Image', fontsize=18)
-    plt.imshow(data, origin='lower', cmap='Greys', vmax=np.percentile(temp_A_hat, 95), vmin=np.percentile(temp_A_hat, 5))
-    plt.colorbar(fraction=0.046, pad=0.04)
-    plt.subplot(2,2,4)
-    plt.title('Image - Background estimate', fontsize=18)
-    plt.imshow(data-temp_A_hat, origin='lower', cmap='Greys', vmax=np.percentile(data-temp_A_hat, 95), vmin=np.percentile(data-temp_A_hat, 5))
-    plt.colorbar(fraction=0.046, pad=0.04)
-    plt.tight_layout()
-    plt.show()
+	plt.figure(figsize=(10,10))
+	plt.suptitle('Moore-Penrose inverse, $N_{FC}$='+str(n_terms), fontsize=20, y=1.02)
+	plt.subplot(2,2,1)
+	plt.title('Background estimate', fontsize=18)
+	plt.imshow(temp_A_hat, origin='lower', cmap='Greys', vmax=np.percentile(temp_A_hat, 99), vmin=np.percentile(temp_A_hat, 1))
+	plt.colorbar(fraction=0.046, pad=0.04)
+	plt.subplot(2,2,2)
+	plt.hist(np.abs(A_hat), bins=np.logspace(-5, 1, 30))
+	plt.xscale('log')
+	plt.xlabel('Absolute value of Fourier coefficients', fontsize=14)
+	plt.ylabel('N')
+	plt.subplot(2,2,3)
+	plt.title('Image', fontsize=18)
+	plt.imshow(data, origin='lower', cmap='Greys', vmax=np.percentile(temp_A_hat, 95), vmin=np.percentile(temp_A_hat, 5))
+	plt.colorbar(fraction=0.046, pad=0.04)
+	plt.subplot(2,2,4)
+	plt.title('Image - Background estimate', fontsize=18)
+	plt.imshow(data-temp_A_hat, origin='lower', cmap='Greys', vmax=np.percentile(data-temp_A_hat, 95), vmin=np.percentile(data-temp_A_hat, 5))
+	plt.colorbar(fraction=0.046, pad=0.04)
+	plt.tight_layout()
+	plt.show()
 
 def plot_posterior_fc_power_spectrum(fourier_coeffs, N, pixsize=6., show=False):
 
@@ -848,7 +847,7 @@ def plot_residual_map(resid, mode='median', band='S', titlefontsize=14, smooth=T
 		plt.imshow(smooth_resid, interpolation=None, cmap='Greys', vmin=np.percentile(smooth_resid, minpct), vmax=np.percentile(smooth_resid, maxpct), origin='lower')
 		plt.colorbar(fraction=0.046, pad=0.04)
 
-    plt.tick_params(labelsize=14)
+	plt.tick_params(labelsize=14)
 
 	if show:
 		plt.show()
@@ -884,7 +883,7 @@ def plot_residual_1pt_function(resid, mode='median', band='S', show=False, binmi
 	plt.legend(frameon=False)
 	plt.ylabel('$N_{pix}$', fontsize=14)
 	plt.xlabel('Data - Model '+xlabel_unit, fontsize=14)
-    plt.tick_params(labelsize=14)
+	plt.tick_params(labelsize=14)
 
 	if show:
 		plt.show()
@@ -909,7 +908,7 @@ def plot_multiband_chi_squared(chi2_list, sample_number, band_list, show=False, 
 			plt.ylabel('Chi-squared', fontsize=14)
 
 	plt.xlabel('Sample index', fontsize=14)
-    plt.tick_params(labelsize=14)
+	plt.tick_params(labelsize=14)
 
 	plt.legend()
 
@@ -979,26 +978,26 @@ def plot_acceptance_fractions(accept_stats, proposal_types=['All', 'Move', 'Birt
 	return f
 
 def trace_plot(chains, titlestr=None, i0=0, ylabel=None, titlefontsize=18, show=True, return_fig=True):
-    
-    f = plt.figure(figsize=(6, 5))
-    if titlestr is not None:
-        plt.title(titlestr, fontsize=titlefontsize)
-    # for chain in temp_chains_full[0]:
+	
+	f = plt.figure(figsize=(6, 5))
+	if titlestr is not None:
+		plt.title(titlestr, fontsize=titlefontsize)
+	# for chain in temp_chains_full[0]:
 
-    for chain in chains:
+	for chain in chains:
 
-        plt.plot(np.arange(i0, len(chain)), chain[i0:])
-    
-    plt.xlabel('$i_{samp}$', fontsize=18)
-    if ylabel is not None:
-        plt.ylabel(ylabel, fontsize=18)
-    plt.tick_params(labelsize=14)
-    
-    if show:
-        plt.show()
-    
-    if return_fig:
-        return f
+		plt.plot(np.arange(i0, len(chain)), chain[i0:])
+	
+	plt.xlabel('$i_{samp}$', fontsize=18)
+	if ylabel is not None:
+		plt.ylabel(ylabel, fontsize=18)
+	plt.tick_params(labelsize=14)
+	
+	if show:
+		plt.show()
+	
+	if return_fig:
+		return f
 
 
 def plot_src_number_posterior(nsrc_fov, show=False, title=False, nsrc_truth=None, fmin=4.0, units='mJy'):
@@ -1041,85 +1040,85 @@ def plot_src_number_trace(nsrc_fov, show=False, title=False):
 	return f
 
 
-def plot_grap():
+# def plot_grap():
 
-	"""
-	Makes plot of probabilistic graphical model for SPIRE
-	"""
+# 	"""
+# 	Makes plot of probabilistic graphical model for SPIRE
+# 	"""
 		
-	figr, axis = plt.subplots(figsize=(6, 6))
+# 	figr, axis = plt.subplots(figsize=(6, 6))
 
-	grap = nx.DiGraph()   
-	grap.add_edges_from([('muS', 'svec'), ('sigS', 'svec'), ('alpha', 'f0'), ('beta', 'nsrc')])
-	grap.add_edges_from([('back', 'modl'), ('xvec', 'modl'), ('f0', 'modl'), ('svec', 'modl'), ('PSF', 'modl'), ('ASZ', 'modl')])
-	grap.add_edges_from([('modl', 'data')])
-	listcolr = ['black' for i in range(7)]
+# 	grap = nx.DiGraph()   
+# 	grap.add_edges_from([('muS', 'svec'), ('sigS', 'svec'), ('alpha', 'f0'), ('beta', 'nsrc')])
+# 	grap.add_edges_from([('back', 'modl'), ('xvec', 'modl'), ('f0', 'modl'), ('svec', 'modl'), ('PSF', 'modl'), ('ASZ', 'modl')])
+# 	grap.add_edges_from([('modl', 'data')])
+# 	listcolr = ['black' for i in range(7)]
 	
-	labl = {}
+# 	labl = {}
 
-	nameelem = r'\rm{pts}'
+# 	nameelem = r'\rm{pts}'
 
 
-	labl['beta'] = r'$\beta$'
-	labl['alpha'] = r'$\alpha$'
-	labl['muS'] = r'$\vec{\mu}_S$'
-	labl['sigS'] = r'$\vec{\sigma}_S$'
-	labl['xvec'] = r'$\vec{x}$'
-	labl['f0'] = r'$F_0$'
-	labl['svec'] = r'$\vec{s}$'
-	labl['PSF'] = r'PSF'
-	labl['modl'] = r'$M_D$'
-	labl['data'] = r'$D$'
-	labl['back'] = r'$\vec{A_{sky}}$'
-	labl['nsrc'] = r'$N_{src}$'
-	labl['ASZ'] = r'$\vec{A_{SZ}}$'
+# 	labl['beta'] = r'$\beta$'
+# 	labl['alpha'] = r'$\alpha$'
+# 	labl['muS'] = r'$\vec{\mu}_S$'
+# 	labl['sigS'] = r'$\vec{\sigma}_S$'
+# 	labl['xvec'] = r'$\vec{x}$'
+# 	labl['f0'] = r'$F_0$'
+# 	labl['svec'] = r'$\vec{s}$'
+# 	labl['PSF'] = r'PSF'
+# 	labl['modl'] = r'$M_D$'
+# 	labl['data'] = r'$D$'
+# 	labl['back'] = r'$\vec{A_{sky}}$'
+# 	labl['nsrc'] = r'$N_{src}$'
+# 	labl['ASZ'] = r'$\vec{A_{SZ}}$'
 	
 	
-	posi = nx.circular_layout(grap)
-	posi['alpha'] = np.array([-0.025, 0.15])
-	posi['muS'] = np.array([0.025, 0.15])
-	posi['sigS'] = np.array([0.075, 0.15])
-	posi['beta'] = np.array([0.12, 0.15])
+# 	posi = nx.circular_layout(grap)
+# 	posi['alpha'] = np.array([-0.025, 0.15])
+# 	posi['muS'] = np.array([0.025, 0.15])
+# 	posi['sigS'] = np.array([0.075, 0.15])
+# 	posi['beta'] = np.array([0.12, 0.15])
 
-	posi['xvec'] = np.array([-0.075, 0.05])
-	posi['f0'] = np.array([-0.025, 0.05])
-	posi['svec'] = np.array([0.025, 0.05])
-	posi['PSF'] = np.array([0.07, 0.05])
-	posi['back'] = np.array([-0.125, 0.05])
+# 	posi['xvec'] = np.array([-0.075, 0.05])
+# 	posi['f0'] = np.array([-0.025, 0.05])
+# 	posi['svec'] = np.array([0.025, 0.05])
+# 	posi['PSF'] = np.array([0.07, 0.05])
+# 	posi['back'] = np.array([-0.125, 0.05])
 	
-	posi['modl'] = np.array([-0.05, -0.05])
-	posi['data'] = np.array([-0.05, -0.1])
-	posi['nsrc'] = np.array([0.08, 0.01])
+# 	posi['modl'] = np.array([-0.05, -0.05])
+# 	posi['data'] = np.array([-0.05, -0.1])
+# 	posi['nsrc'] = np.array([0.08, 0.01])
 	
-	posi['ASZ'] = np.array([-0.175, 0.05])
+# 	posi['ASZ'] = np.array([-0.175, 0.05])
 
 
-	rect = patches.Rectangle((-0.10,0.105),0.2,-0.11,linewidth=2, facecolor='none', edgecolor='k')
+# 	rect = patches.Rectangle((-0.10,0.105),0.2,-0.11,linewidth=2, facecolor='none', edgecolor='k')
 
-	axis.add_patch(rect)
+# 	axis.add_patch(rect)
 
-	size = 1000
-	nx.draw(grap, posi, labels=labl, ax=axis, edgelist=grap.edges())
-	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['nsrc'], node_color='white', node_size=500)
+# 	size = 1000
+# 	nx.draw(grap, posi, labels=labl, ax=axis, edgelist=grap.edges())
+# 	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['nsrc'], node_color='white', node_size=500)
 
-	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['modl'], node_color='xkcd:sky blue', node_size=1000)
-	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['beta'], node_shape='d', node_color='y', node_size=size)
+# 	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['modl'], node_color='xkcd:sky blue', node_size=1000)
+# 	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['beta'], node_shape='d', node_color='y', node_size=size)
 	
-	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['data'],  node_color='grey', node_shape='s', node_size=size)
-	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['xvec', 'f0', 'svec'], node_color='orange', node_size=size)
-	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['PSF'], node_shape='d', node_color='orange', node_size=size)
+# 	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['data'],  node_color='grey', node_shape='s', node_size=size)
+# 	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['xvec', 'f0', 'svec'], node_color='orange', node_size=size)
+# 	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['PSF'], node_shape='d', node_color='orange', node_size=size)
 	
-	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['back'], node_color='orange', node_size=size)
+# 	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['back'], node_color='orange', node_size=size)
 	
-	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['ASZ'], node_color='violet', node_size=size)
+# 	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['ASZ'], node_color='violet', node_size=size)
 
-	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['alpha', 'muS', 'sigS'], node_shape='d', node_color='y', node_size=size)
+# 	nx.draw_networkx_nodes(grap, posi, ax=axis, labels=labl, nodelist=['alpha', 'muS', 'sigS'], node_shape='d', node_color='y', node_size=size)
 
 	
-	plt.tight_layout()
-	plt.show()
+# 	plt.tight_layout()
+# 	plt.show()
 	
-	return figr
+# 	return figr
 
 def grab_atcr(timestr, paramstr='template_amplitudes', band=0, result_dir=None, nsamp=500, template_idx=0, return_fig=True):
 	

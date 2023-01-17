@@ -3,6 +3,8 @@ import numpy as np
 import numpy.ctypeslib as npct
 import ctypes
 from ctypes import c_int, c_double
+import pickle
+import time
 
 
 def add_directory(dirpath):
@@ -19,7 +21,7 @@ def add_directory(dirpath):
 	return dirpath
 
 
-def create_directories(gdat):
+def create_directories(gdat, run_dir_name=None):
 	""" 
 	Makes initial directory structure for new PCAT run.
 
@@ -41,28 +43,32 @@ def create_directories(gdat):
 		Time string associated with new PCAT run
 
 	"""
+	if run_dir_name is None:
+		run_dir_name = gdat.timestr 
 
-	new_dir_name = gdat.result_path+'/'+gdat.timestr
+	run_dir = gdat.result_basedir+run_dir_name
+
 	timestr = gdat.timestr
-	if os.path.isdir(gdat.result_path+'/'+gdat.timestr):
+	if os.path.isdir(run_dir):
 		i = 0
 		time.sleep(np.random.uniform(0, 5))
-		while os.path.isdir(gdat.result_path+'/'+gdat.timestr+'_'+str(i)):
+		# while os.path.isdir(gdat.result_basedir+gdat.timestr+'_'+str(i)):
+		while os.path.isdir(run_dir+'_'+str(i)):
 			time.sleep(np.random.uniform(0, 2))
 			i += 1
 		
-		timestr = gdat.timestr+'_'+str(i)
-		new_dir_name = gdat.result_path+'/'+timestr
+		timestr += '_'+str(i)
+		run_dir += '_'+str(i)
 
-	os.makedirs(new_dir_name)
+	os.makedirs(run_dir)
 
-	frame_dir_name = new_dir_name+'/frames'
+	frame_dir = run_dir+'/frames/'
 	
-	if not os.path.isdir(frame_dir_name) and gdat.n_frames > 0:
-		os.makedirs(frame_dir_name)
+	if not os.path.isdir(frame_dir) and gdat.n_frames > 0:
+		os.makedirs(frame_dir)
 	
 	print('timestr:', timestr)
-	return frame_dir_name, new_dir_name, timestr
+	return frame_dir, run_dir, timestr
 
 
 def initialize_c(gdat, libmmult, cblas=False):
@@ -138,31 +144,6 @@ def initialize_libmmult(cblas=True, openblas=False):
 
 	return libmmult
 
-def save_params(directory, gdat):
-	""" 
-	Save parameters as dictionary, then pickle them to .txt file. This also produces a more human-readable file, params_read.txt. 
-	This is an in place operation. 
-
-	Parameters
-	----------
-
-	directory : 'str'. MCMC run result directory to store parameter configuration file.
-	gdat : global data object used by PCAT.
-	"""
-
-	param_dict = vars(gdat).copy()
-	param_dict['fc_templates'] = None # these take up too much space and not necessary
-	param_dict['truth_catalog'] = None 
-	
-	with open(directory+'/params.txt', 'wb') as file:
-		file.write(pickle.dumps(param_dict))
-
-	file.close()
-
-	with open(directory+'/params_read.txt', 'w') as file2:
-		for key in param_dict:
-			file2.write(key+': '+str(param_dict[key])+'\n')
-	file2.close()
 
 def verbprint(verbose, text, file=None, verbthresh=0):
 	""" 
