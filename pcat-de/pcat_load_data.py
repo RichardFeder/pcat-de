@@ -11,7 +11,7 @@ from astropy.nddata.utils import Cutout2D
 from astropy import units as u
 from astropy.io import fits
 
-
+from plotting_fns import *
 
 class objectview(object):
 	def __init__(self, d):
@@ -20,6 +20,8 @@ class objectview(object):
 
 def grab_map_by_bounds(bounds, orig_map):
 
+	print('bounds is ', bounds)
+	bounds = np.array(bounds).astype(int)
 	bound_map = orig_map[bounds[0,0]:bounds[0,1], bounds[1,0]:bounds[1,1]]
 	return bound_map
 
@@ -134,14 +136,6 @@ def load_in_map(gdat, file_path=None, band=0, astrom=None, show_input_maps=False
 
 	"""
 
-	if file_path is None:
-
-		if gdat.file_path is None:
-			file_path = config.data_path+gdat.dataname+'/'+gdat.tail_name+'.fits'
-		else:
-			file_path = gdat.file_path
-
-	file_path = file_path.replace('PSW', 'P'+str(gdat.band_dict[band])+'W')
 	verbprint(gdat.verbtype, 'Band is '+str(gdat.band_dict[band]), verbthresh=1)
 	verbprint(gdat.verbtype, 'file path is '+str(file_path), verbthresh=1)
 
@@ -149,41 +143,51 @@ def load_in_map(gdat, file_path=None, band=0, astrom=None, show_input_maps=False
 		verbprint(gdat.verbtype, 'Loading from ', gdat.band_dict[band], verbthresh=1)
 		astrom.load_wcs_header_and_dim(file_path, round_up_or_down=gdat.round_up_or_down)
 
+
+	if file_path is None:
+		if gdat.file_path is None:
+			file_path = config.data_path+gdat.dataname+'/'+gdat.tail_name+'.fits'
+		else:
+			file_path = gdat.file_path
+		file_path = file_path.replace('PSW', 'P'+str(gdat.band_dict[band])+'W')
+
 	#by loading in the image this way, we can compose maps from several components, e.g. noiseless CIB + noise realization
 	
-	if gdat.im_fpath is None:
-		spire_dat = fits.open(file_path)
-	else:
-		spire_dat = fits.open(gdat.im_fpath)
+	if file_path is not None:
+		data_file = fits.open(file_path)
+	elif gdat.im_fpath is not None:
+		data_file = fits.open(gdat.im_fpath)
 
 	for e, extname in enumerate(image_extnames):
+		comp = np.nan_to_num(data_file[extname].data)
 		if e==0:
-			image = np.nan_to_num(spire_dat[extname].data)
+			image = comp
+			extnamestr = extname
+			extnameplotstr = extname
 		else:
-			image += np.nan_to_num(spire_dat[extname].data)
+			image += comp
+			extnamestr += '_'+extname
+			extnameplotstr += '+'+extname
 
 		if gdat.show_input_maps:
-			plot_single_map(image, title=extname, lopct=5, hipct=95)
+			plot_single_map(comp, title=extname, lopct=5, hipct=95, save_bool=gdat.save_input_plots,\
+					 save_dir=gdat.input_map_dir, filename=extname+'_band'+str(band)+'.'+gdat.fig_filetype)
 
-	if not gdat.use_uncertainty_map:
-		uncertainty_map = np.zeros_like(image)
-	elif gdat.err_fpath is None:
-		uncertainty_map = np.nan_to_num(spire_dat[gdat.uncertainty_map_extname].data)
-	else:
-		hdu = fits.open(gdat.err_fpath)[err_hdu_idx]
-		uncertainty_map = np.nan_to_num(hdu.data)
+			plot_single_map(image, title=extnameplotstr, lopct=5, hipct=95, save_bool=gdat.save_input_plots,\
+								 save_dir=gdat.input_map_dir, filename=extnamestr+'_band'+str(band)+'.'+gdat.fig_filetype)
 
-	# main functionality is following eight lines
-	if gdat.use_mask:
-		if gdat.mask_file is not None:
-			mask_fpath = gdat.mask_file.replace('PSW', 'P'+str(gdat.band_dict[band])+'W')
-			mask = fits.open(mask_fpath)[0].data
-		else:
-			mask = spire_dat['MASK'].data
-	else:
-		print('Not using mask..')
-		mask = np.ones_like(image)
+	uncertainty_map = None
+	if gdat.use_uncertainty_map:
+		if file_path is not None:
+			assert gdat.uncertainty_map_extname in [df.name for df in data_file]
+			uncertainty_map = np.nan_to_num(data_file[gdat.uncertainty_map_extname].data)
+		elif gdat.err_fpath is not None:
+			uncertainty_map = np.nan_to_num(fits.open(gdat.err_fpath)[err_hdu_idx].data)
 
+	# if add_noise is True, Gaussian noise realization added to image. 
+	# If scalar_noise_sigma specified, this sets RMS which is added, and updates the uncertainty map accordingly.
+	# if scalar_noise_sigma not provided, PCAT assumes Gaussian noise realizations should be drawn from provided uncertainty maps, 
+	# i.e. this is good for mock observations. 
 	if gdat.add_noise:
 		verbprint(gdat.verbtype, 'Adding Gaussian noise..')
 		if gdat.scalar_noise_sigma is not None:
@@ -193,33 +197,47 @@ def load_in_map(gdat, file_path=None, band=0, astrom=None, show_input_maps=False
 				noise_sig = gdat.scalar_noise_sigma[band]
 
 			noise_realization = np.random.normal(0, noise_sig, image.shape)
-			image += noise_realization
 			
-			if not gdat.use_uncertainty_map:
-				uncertainty_map = noise_sig*np.ones((image.shape[0], image.shape[1]))
-			else:
+			if gdat.use_uncertainty_map:
 				old_unc = uncertainty_map.copy()
 				old_variance = old_unc**2
 				old_variance[uncertainty_map != 0] += noise_sig**2
 				uncertainty_map = np.sqrt(old_variance)
+			else:
+				uncertainty_map += noise_sig*np.ones((image.shape[0], image.shape[1]))
 
 			if gdat.show_input_maps:
 				plot_multipanel([noise_realization, showim, uncertainty_map], ['Noise realization', 'Image + Gaussian noise', 'Uncertainty map'], figsize=(15, 5), \
-					lopct=5, hipct=95)
+					lopct=5, hipct=95, save_bool=gdat.save_input_plots,\
+								 save_dir=gdat.input_map_dir, filename='noiseim_sigplusnoiseim_uncmap_band'+str(band)+'.'+gdat.fig_filetype)
 
 		else:
 			print('Using uncertainty map to generate noise realization, assuming Gaussian distributed..')
-			noise_realization = np.zeros_like(uncertainty_map)
-			for rowidx in range(uncertainty_map.shape[0]):
-				for colidx in range(uncertainty_map.shape[1]):
-					if not np.isnan(uncertainty_map[rowidx,colidx]):
-						noise_realization[rowidx,colidx] = np.random.normal(0, uncertainty_map[rowidx,colidx])
+			noise_realization = uncertainty_map*np.random.normal(0, 1, uncertainty_map.shape)
+
 			if gdat.show_input_maps:
-				plot_single_map(noise_realization, title='Noise realization', lopct=5, hipct=95)
-			image += noise_realization
+				plot_single_map(noise_realization, title='Noise realization', lopct=5, hipct=95, save_bool=gdat.save_input_plots,\
+								 save_dir=gdat.input_map_dir, filename='noise_realization_band'+str(band)+'.'+gdat.fig_filetype)
+
+		image += noise_realization
+	
+	# at this point the uncertainty map should be declared, i.e. it shouldn't be None.
+	assert uncertainty_map is not None 
+
+	if gdat.use_mask:
+		if gdat.mask_file is not None:
+			mask_fpath = gdat.mask_file.replace('PSW', 'P'+str(gdat.band_dict[band])+'W')
+			mask = fits.open(mask_fpath)[0].data
+		else:
+			mask = data_file['MASK'].data
+	else:
+		verbprint(gdat.verbtype, 'Not using mask..', verbthresh=1)
+		mask = np.ones_like(image)
+
 
 	if gdat.show_input_maps:
-		plot_multipanel([image, uncertainty_map, mask], ['Data', 'Uncertainty map', 'Mask'], figsize=(12, 4), lopct=[5, 5, None], hipct=[95, 95, None])
+		plot_multipanel([image, uncertainty_map, mask], ['Data', 'Uncertainty map', 'Mask'], figsize=(12, 4), lopct=[5, 5, None], hipct=[95, 95, None], save_bool=gdat.save_input_plots,\
+								 save_dir=gdat.input_map_dir, filename='image_uncmap_mask_multipanel_band'+str(band)+'.'+gdat.fig_filetype)
 
 	return image, uncertainty_map, mask, file_path
 
@@ -253,7 +271,7 @@ def load_param_dict(param_filepath=None, timestr=None, result_dir=None, encoding
 
 	if param_filepath is None:
 		if result_dir is None:
-			result_dir = config.result_dir
+			result_dir = config.result_basedir
 		param_filepath = result_dir
 		if timestr is not None:
 			param_filepath += timestr
@@ -303,20 +321,22 @@ class pcat_data():
 
 	"""
 
-	def __init__(self, gdat, auto_resize=False, nregion=1):
-
-		self.ncs, self.nbins, self.psfs, self.cfs, self.biases, self.data_array, self.weights, self.masks, self.uncertainty_maps, \
-			self.fracs, self.template_array = [[] for x in range(11)]
-
-		self.fast_astrom = wcs_astrometry(auto_resize, nregion=nregion)
+	def __init__(self, gdat, load_in_data=True, save_input_plots=True, nregion=1):
 
 		self.gdat = gdat
 
-		# gdat.regsizes, gdat.margins, gdat.bounds,\
-		 
-		self.gdat.imszs, self.gdat.imszs_orig = [np.zeros((self.gdat.nbands, 2)) for x in range(2)]
-		self.gdat.x_max_pivot_list, self.gdat.x_max_pivot_list = [np.zeros((self.gdat.nbands)) for x in range(2)]
+		self.ncs, self.nbins, self.psfs, self.cfs, self.biases,\
+			 self.data_array, self.weights, self.masks, self.uncertainty_maps,\
+			 	 self.fracs, self.template_array = [[] for x in range(11)]
+
+		self.fast_astrom = wcs_astrometry(self.gdat.auto_resize, nregion=nregion)
+
+		self.gdat.imszs, self.gdat.imszs_orig = [np.zeros((self.gdat.nbands, 2)).astype(np.int) for x in range(2)]
+		self.gdat.x_max_pivot_list, self.gdat.y_max_pivot_list, self.gdat.regsizes = [np.zeros((self.gdat.nbands)).astype(int) for x in range(3)]
 		self.gdat.bounds = np.zeros((self.gdat.nbands, 2, 2))
+
+		if load_in_data:
+			self.load_in_data()
 
 	def square_pad_maps(self, image, uncertainty_map, mask, template_list):
 		''' This pads the maps so that they are square, and modifies the associated uncertainty maps and masks. '''
@@ -360,7 +380,8 @@ class pcat_data():
 
 				template = fits.open(template_file_names[t])[template_name].data
 				if show_input_maps:
-					plot_single_map(template, title=template_name)
+					plot_single_map(template, title=template_name, save_bool=self.gdat.save_input_plots,\
+								 save_dir=self.gdat.input_map_dir, filename='template_'+str(template_name)+'_band'+str(band)+'.'+self.gdat.fig_filetype)
 
 				if sb_scale_facs[t] is not None:
 					template *= sb_scale_facs[t]
@@ -404,8 +425,18 @@ class pcat_data():
 		if temp_mock_amps_dict is None:
 			temp_mock_amps_dict = self.gdat.temp_mock_amps_dict
 
+
+		if self.gdat.show_input_maps:
+			self.gdat.input_map_dir = self.gdat.run_dir+'/input_map_plots/'
+
+			if not os.path.isdir(self.gdat.input_map_dir):
+				print('Making directory for input data parsing plots..')
+				os.makedirs(self.gdat.input_map_dir)
+
 		for b, band in enumerate(self.gdat.bands):
-			image, uncertainty_map, mask, file_name = load_in_map(self.gdat, band, astrom=self.fast_astrom, show_input_maps=self.gdat.show_input_maps, image_extnames=self.gdat.image_extnames)
+			image, uncertainty_map, mask, file_name = load_in_map(self.gdat, file_path=self.gdat.data_fpaths[b], band=band,\
+																	 astrom=self.fast_astrom, show_input_maps=self.gdat.show_input_maps,\
+																	image_extnames=self.gdat.image_extnames)
 			imshp = image.shape 
 			self.gdat.imszs_orig[b,:] = np.array([imshp[0], imshp[1]])
 			self.gdat.bounds[b,:,:] = np.array([[0, imshp[0]], [0, imshp[1]]])
@@ -415,8 +446,14 @@ class pcat_data():
 
 			# this part updates the fast astrometry information if cropping the images
 			# if bounds is not None:
-			# 	big_dim = np.maximum(find_nearest_mod(bounds[0,1]-bounds[0,0]+1, gdat.nregion), find_nearest_mod(bounds[1,1]-bounds[1,0]+1, gdat.nregion))
-			# 	self.fast_astrom.dims[b] = (big_dim, big_dim)
+			# big_dim = np.maximum(find_nearest_mod(self.bounds[0,1]-bounds[0,0]+1, gdat.nregion), find_nearest_mod(bounds[1,1]-bounds[1,0]+1, gdat.nregion))
+			# big_dim = np.maximum(find_nearest_mod(self.gdat.bounds[b,0,1]-self.gdat.bounds[b,0,0]+1, self.gdat.nregion), find_nearest_mod(self.gdat.bounds[b,1,1]-self.gdat.bounds[b,1,0]+1, self.gdat.nregion))
+			big_dim = np.maximum(find_nearest_mod(self.gdat.bounds[b,0,1]-self.gdat.bounds[b,0,0], self.gdat.nregion), find_nearest_mod(self.gdat.bounds[b,1,1]-self.gdat.bounds[b,1,0], self.gdat.nregion))
+
+			verbprint(self.gdat.verbtype, 'big dim is '+str(big_dim), verbthresh=1)
+			big_dim = int(big_dim)
+
+			self.fast_astrom.dims[b] = (big_dim, big_dim)
 
 			template_list = [] 
 			if self.gdat.n_templates > 0:
@@ -429,31 +466,36 @@ class pcat_data():
 					image += template_inject
 
 					if show_input_maps:
-						plot_multipanel([template_inject, image], [self.gdat.template_names[t], 'image + '+self.gdat.template_names[t]], figsize=(8,4), cmap='Greys')
+						f = plot_multipanel([template_inject, image], [self.gdat.template_names[t], 'image + '+self.gdat.template_names[t]],\
+											 figsize=(8,4), cmap='Greys', save_bool=gdat.save_input_plots,\
+								 save_dir=gdat.input_map_dir, filename=str(self.gdat.template_names[t])+'_template_inject_image_band'+str(band)+'.'+gdat.fig_filetype)
 
 			if b > 0:
 				verbprint(self.gdat.verbtype, 'Moving to band '+str(band)+'..', verbthresh=1)
 				verbprint(self.gdat.verbtype, 'Loading astrometry for band '+str(band), verbthresh=1)
-				self.fast_astrom.fit_astrom_arrays(0, b, bounds0=bounds[0], bounds1=bounds[b])
+				self.fast_astrom.fit_astrom_arrays(0, b, bounds0=self.gdat.bounds[0], bounds1=self.gdat.bounds[b])
 				
 				x_max_pivot, y_max_pivot = self.fast_astrom.transform_q(np.array([self.gdat.imszs[0,0]]), np.array([self.gdat.imszs[0,1]]), b-1)
-				# x_max_pivot, y_max_pivot = self.fast_astrom.transform_q(np.array([self.gdat.imsz0[0]]), np.array([self.gdat.imsz0[1]]), b-1)
-				print('xmaxpivot, ymaxpivot for band ', i, ' are ', x_max_pivot, y_max_pivot)
-				self.gdat.x_max_pivot_list.append(x_max_pivot)
-				self.gdat.y_max_pivot_list.append(y_max_pivot)
+				x_max_pivot = int(x_max_pivot)
+				y_max_pivot = int(y_max_pivot)
+				verbprint(self.gdat.verbtype, 'xmaxpivot, ymaxpivot for band '+str(b)+' are '+str(x_max_pivot)+','+str(y_max_pivot), verbthresh=1)
+				self.gdat.x_max_pivot_list[b] = x_max_pivot
+				self.gdat.y_max_pivot_list[b] = y_max_pivot
 			else:
-				self.gdat.x_max_pivot_list.append(big_dim)
-				self.gdat.y_max_pivot_list.append(big_dim)
+				self.gdat.x_max_pivot_list[b] = big_dim
+				self.gdat.y_max_pivot_list[b] = big_dim
 
-			image = grab_map_by_bounds(bounds, image)
-			uncertainty_map = grab_map_by_bounds(bounds, uncertainty_map)
+			image = grab_map_by_bounds(self.gdat.bounds[b], image)
+			uncertainty_map = grab_map_by_bounds(self.gdat.bounds[b], uncertainty_map)
 			for t, template in enumerate(template_list):
 				if template is not None:
-					template_list[t] = grab_map_by_bounds(bounds, template) # bounds
+					template_list[t] = grab_map_by_bounds(self.gdat.bounds[b], template) # bounds
 			# uncertainty_map = uncertainty_map[bounds[0,0]:bounds[0,1]+1, bounds[1,0]:bounds[1,1]+1] # bounds
 			# image = image[bounds[0,0]:bounds[0,1]+1, bounds[1,0]:bounds[1,1]+1]
 
 			image_size, resized_image, resized_unc, resized_mask, resized_templates = self.square_pad_maps(image, uncertainty_map, mask, template_list)
+
+			width, height = image_size[0], image_size[1]
 
 			if b > 0 and int(x_max_pivot) < resized_image.shape[0]:
 				verbprint('Setting pixels in band '+str(b)+' not in band 0 FOV to zero..')
@@ -461,16 +503,20 @@ class pcat_data():
 				resized_unc[resized_mask==0] = 0.
 
 				if show_input_maps:
-					plot_multipanel([resized_mask, resized_image, resized_unc], ['resized mask', 'resized_image', 'resized_unc'])
+					plot_multipanel([resized_mask, resized_image, resized_unc], ['resized mask', 'resized_image', 'resized_unc'], \
+								save_bool=gdat.save_input_plots,\
+								 save_dir=gdat.input_map_dir, filename='resized_mask_resized_image_resized_unc_band'+str(band)+'.'+gdat.fig_filetype)
 			
 			if show_input_maps:
 				for t, resized_template in enumerate(resized_templates):
-					plot_multipanel([resized_template, resized_image], ['Resized template, '+self.gdat.template_order[t], 'Resized Image'], cmap='Greys')
+					plot_multipanel([resized_template, resized_image], ['Resized template, '+self.gdat.template_order[t], 'Resized Image'], cmap='Greys', save_bool=gdat.save_input_plots,\
+								 save_dir=gdat.input_map_dir, filename='resized_template_resized_image_band'+str(band)+'.'+gdat.fig_filetype)
 
 			variance, weight = calc_weights(resized_unc)
 
 			if show_input_maps:
-				plot_single_map(weight, title='weight map', lopct=5, hipct=95)
+				plot_single_map(weight, title='weight map', lopct=5, hipct=95, save_bool=self.gdat.save_input_plots,\
+								 save_dir=self.gdat.input_map_dir, filename='weight_map_band'+str(band)+'.'+self.gdat.fig_filetype)
 
 			self.weights.append(weight.astype(np.float32))
 			self.uncertainty_maps.append(resized_unc.astype(np.float32))
@@ -480,21 +526,24 @@ class pcat_data():
 			self.data_array.append(resized_image.astype(np.float32)-self.gdat.mean_offsets[b]) # constant offset, will need to change
 			# self.data_array.append(resized_image.astype(float))
 			
-			self.template_array.append(resized_template_list)
+			self.template_array.append(resized_templates)
 
-			if i==0:
+			if b==0:
 				self.gdat.imsz0 = image_size
 
 			if show_input_maps:
-				plot_single_map(self.data_array[b], title='Data, '+self.gdat.tail_name, lopct=5, hipct=95)
-				plot_single_map(self.uncertainty_maps[b], title='Uncertainty map, '+self.gdat.tail_name, lopct=5, hipct=95)
+				plot_single_map(self.data_array[b], title='Data, '+self.gdat.tail_name, lopct=5, hipct=95, save_bool=self.gdat.save_input_plots,\
+								 save_dir=self.gdat.input_map_dir, filename='image_data_band'+str(band)+'.'+self.gdat.fig_filetype)
+				plot_single_map(self.uncertainty_maps[b], title='Uncertainty map, '+self.gdat.tail_name, lopct=5, hipct=95, save_bool=self.gdat.save_input_plots,\
+								 save_dir=self.gdat.input_map_dir, filename='uncertainty_map_band'+str(band)+'.'+self.gdat.fig_filetype)
 
 			self.gdat.imszs[b,:] = np.array(image_size)
-			self.gdat.regsizes[b] = image_size[0]/gdat.nregion
-			self.gdat.frac = np.count_nonzero(weight)/float(self.gdat.width*self.gdat.height)
+			self.gdat.regsizes[b] = image_size[0]/self.gdat.nregion
+			self.gdat.frac = np.count_nonzero(weight)/float(width*height)
 			
-			if self.gdat.psf_postage_stamps is None:
+			if self.gdat.psf_postage_stamps is not None:
 				verbprint(self.gdat.verbtype, 'Using psf postage stamp/s provided..', verbthresh=0)
+				verbprint('NOTE this assumes psf_postage_stamps have been upsampled by factor '+str(self.gdat.nbin)+' already..')
 				psf = self.gdat.psf_postage_stamps[b].copy()
 				nbin = self.gdat.nbin
 				nc = nbin**2
@@ -520,8 +569,18 @@ class pcat_data():
 		verbprint(self.gdat.verbtype, 'pixel_variance:'+str(pixel_variance), verbthresh=1)
 		verbprint(self.gdat.verbtype, 'self.dat.fracs:'+str(self.fracs), verbthresh=1)
 
-		# previous bug? what is difference of err_f between zeroth and last bands (for SPIRE)
+		verbprint(self.gdat.verbtype, 'self.gdat.imszs is '+str(self.gdat.imszs), verbthresh=1)
+
 		if b==0:
+			# if self.gdat.nominal_nsrc is not None:
+			# 	print('Using expected number of sources to scale flux kernel width, where nominal Nsrc = ', self.gdat.nominal_nsrc)
+			# 	npiximage = image_size[0]*image_size[1]
+			# 	# this barely changes anything
+			# 	pixratio = (npiximage - (self.gdat.nominal_nsrc-1)*self.gdat.N_eff)/(npiximage - self.gdat.nominal_nsrc*self.gdat.N_eff)
+			# 	# print('(A-(n-1)A_PSF)/(A-nA_PSF) = ', pixratio)
+			# 	self.gdat.err_f = np.sqrt(self.gdat.N_eff*pixel_variance*pixratio)/self.gdat.err_f_divfac
+			# else:
+			
 			self.gdat.err_f = np.sqrt(self.gdat.N_eff * pixel_variance)/self.gdat.err_f_divfac
 			verbprint(self.gdat.verbtype, 'self.gdat.err_f = '+str(self.gdat.err_f)+' while err_f_divfac = '+str(self.gdat.err_f_divfac), verbthresh=1)
 

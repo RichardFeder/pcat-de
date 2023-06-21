@@ -12,7 +12,7 @@ def compute_marginalized_templates(n_terms, data, error, imsz=None, \
                              psf_fwhm=3., ridge_fac = None, ridge_fac_alpha=None,\
                             show=True, x_max_pivot=None, verbose=False, \
                             bt_siginv_b=None, bt_siginv_b_inv=None, ravel_temps=None, fourier_templates=None, \
-                                   return_temp_A_hat=False, compute_nanmask=True):
+                                   return_temp_A_hat=True, compute_nanmask=False):
     
     """
     NOTE -- this only works for single band at the moment. Is there a way to compute the Moore-Penrose inverse for 
@@ -69,7 +69,7 @@ def compute_marginalized_templates(n_terms, data, error, imsz=None, \
         
     if ravel_temps is None:
         if fourier_templates is None:
-            fourier_templates, meshx_idx, meshy_idx = make_fourier_templates(imsz[0], imsz[1], n_terms, psf_fwhm=psf_fwhm, x_max_pivot=x_max_pivot, return_idxs=True)
+            fourier_templates, meshx_idx, meshy_idx = make_fourier_templates(imsz[0], imsz[1], n_terms, psf_fwhm=psf_fwhm, x_max_pivot=x_max_pivot, return_idxs=True, show_templates=False)
         else:
             meshx_idx, meshy_idx = np.meshgrid(np.arange(n_terms), np.arange(n_terms))
 
@@ -80,17 +80,14 @@ def compute_marginalized_templates(n_terms, data, error, imsz=None, \
     im_cut_rav = data.copy().ravel()
     err_cut_rav = error.copy().ravel()
 
-    # print('')
-    
     if compute_nanmask:
         # compress system of equations excluding any nan-valued entries
         nanmask = np.logical_or(np.logical_or((err_cut_rav ==0), np.isinf(err_cut_rav)), np.logical_or(np.isnan(err_cut_rav), np.isnan(im_cut_rav)))
         
         # print('ravel temps has shape', ravel_temps.shape)
-        if ravel_temps.shape[1]==np.sum(~nanmask):
-            print('dont need to compress rravel temps it already is')
-        else:
+        if ravel_temps.shape[1]!=np.sum(~nanmask):
             ravel_temps = ravel_temps.compress(~nanmask, axis=1)
+
         im_cut_rav = im_cut_rav.compress(~nanmask)
         err_cut_rav = err_cut_rav.compress(~nanmask)
 
@@ -100,9 +97,8 @@ def compute_marginalized_templates(n_terms, data, error, imsz=None, \
         nanmask = None
 
     if bt_siginv_b_inv is None:
-        print('computing bt siginv b inv')
+
         bt_siginv_b = np.dot(ravel_temps, np.dot(np.diag(err_cut_rav**(-2)), ravel_temps.transpose()))
-            
         assert ~np.isnan(np.linalg.cond(bt_siginv_b))
 
         if verbose:
@@ -110,17 +106,17 @@ def compute_marginalized_templates(n_terms, data, error, imsz=None, \
         
         if ridge_fac is not None:
             if verbose:
-                print('adding regularization')
+                print('Adding regularization from ridge factor provided : ', ridge_fac)
 
             if ridge_fac_alpha is not None:
                 kmag = np.sqrt((kx_idx_rav+1)**2 + (ky_idx_rav+1)**2)/np.sqrt(2.) # sqrt of 2 is for kx=1 & ky=1, since its relative to fundamental mode
                 ridge_fac /= kmag**(-ridge_fac_alpha)
-                
             lambda_I = np.zeros_like(bt_siginv_b)
             np.fill_diagonal(lambda_I, ridge_fac)
             bt_siginv_b += lambda_I
             
         bt_siginv_b_inv = np.linalg.inv(bt_siginv_b)
+    # siginv_K_rav = np.dot(np.diag(err_cut_rav**(-2)), im_cut_rav) # Sigma^-1 Y
     
     siginv_K_rav = im_cut_rav*err_cut_rav**(-2) # Sigma^-1 Y
     bt_siginv_K = np.dot(ravel_temps, siginv_K_rav) # B^T Sigma^-1 Y
@@ -129,16 +125,18 @@ def compute_marginalized_templates(n_terms, data, error, imsz=None, \
     
     temp_A_hat = None
     if return_temp_A_hat:
+        print('return temp a hat is True..')
         temp_A_hat = generate_template(mp_coeffs, n_terms, fourier_templates=fourier_templates, N=imsz[0], M=imsz[1], x_max_pivot=x_max_pivot)
 
     if show:
+        print('show is true, plot_mp fit now')
         plot_mp_fit(temp_A_hat, n_terms, A_hat, data)
         
     return fourier_templates, ravel_temps, bt_siginv_b, bt_siginv_b_inv, mp_coeffs, temp_A_hat, nanmask
 
 
-def plot_mp_fit(temp_A_hat, n_terms, A_hat, data):
-    plt.figure(figsize=(10,10))
+def plot_mp_fit(temp_A_hat, n_terms, A_hat, data, show=True, return_fig=False):
+    f = plt.figure(figsize=(10,10))
     plt.suptitle('Moore-Penrose inverse, $N_{FC}$='+str(n_terms), fontsize=20)
     plt.subplot(2,2,1)
     plt.title('Background estimate', fontsize=18)
@@ -158,7 +156,10 @@ def plot_mp_fit(temp_A_hat, n_terms, A_hat, data):
     plt.imshow(data-temp_A_hat, origin='lower', cmap='Greys', vmax=np.percentile(temp_A_hat, 95), vmin=np.percentile(temp_A_hat, 5))
     plt.colorbar(fraction=0.046, pad=0.04)
     plt.tight_layout()
-    plt.show()
+    if show:
+        plt.show()
+    if return_fig:
+        return f
 
 
 def ravel_temps_from_ndtemp(templates, n_terms, auxdim=4):
@@ -174,11 +175,14 @@ def ravel_temps_from_ndtemp(templates, n_terms, auxdim=4):
     auxdim : int, optional
         Default is 4.
     """
+
+    print('templates has shape ', templates.shape)
     ravel_templates_all = np.reshape(templates, (templates.shape[0], templates.shape[1], auxdim, templates.shape[-2]*templates.shape[-1]))
+    print('ravel_templates_all has shape ', ravel_templates_all.shape)
     
-    ravel_temps = ravel_templates_all[:n_terms, :n_terms]
+    # ravel_temps = ravel_templates_all[:n_terms, :n_terms]
     
-    ravel_temps = np.reshape(ravel_temps, (ravel_temps.shape[0]*ravel_temps.shape[1]*ravel_temps.shape[2], ravel_temps.shape[-1]))
+    ravel_temps = np.reshape(ravel_templates_all, (ravel_templates_all.shape[0]*ravel_templates_all.shape[1]*ravel_templates_all.shape[2], ravel_templates_all.shape[-1]))
     
     return ravel_temps
 
@@ -263,6 +267,19 @@ def make_fourier_templates(N, M, n_terms, show_templates=False, psf_fwhm=None, s
 
     """
 
+    print(n_terms, N, M)
+
+    # if type(N)==float:
+    #     print('Changing N = ', N, 'to an int..')
+    N = int(N)
+    # if type(M)==float:
+    #     print('Changing M = ', M, 'to an int..')
+    M = int(M)
+    # if type(n_terms)==float:
+    #     print('Changing n_terms = ', n_terms, 'to an int..')
+    n_terms = int(n_terms)
+
+
     templates = np.zeros((n_terms, n_terms, 4, N, M))
     if scale_fac is None:
         scale_fac = 1.
@@ -321,6 +338,7 @@ def make_fourier_templates(N, M, n_terms, show_templates=False, psf_fwhm=None, s
                     plt.subplot(n_terms, n_terms, counter)
                     plt.title('i = '+ str(i)+', j = '+str(j))
                     plt.imshow(templates[i,j,k,:,:])
+                    plt.colorbar()
                     counter +=1
             plt.tight_layout()
             plt.show()

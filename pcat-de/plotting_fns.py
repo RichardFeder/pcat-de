@@ -102,7 +102,7 @@ def plot_atcr(listsamp, title):
 	plt.title(title, fontsize=16)
 	axis.plot(np.arange(numbsampatcr), autocorr)
 	axis.set_xlabel(r'$\tau$', fontsize=16)
-	axis.set_ylabel(r'$\\xi(\tau)$', fontsize=16)
+	axis.set_ylabel(r'$\xi(\tau)$', fontsize=16)
 	axis.text(0.8, 0.8, r'$\tau_{exp} = %.3g$' % timeatcr, ha='center', va='center', transform=axis.transAxes, fontsize=16)
 	axis.axhline(0., ls='--', alpha=0.5)
 	plt.tight_layout()
@@ -151,149 +151,347 @@ def plot_atcr_multichain(listsamp, title=None, alpha=1.0, show=False):
 
 	return figr, np.arange(numbsampatcr), autocorrs
 
+def retr_subplot_shape(npanels):
+	if npanels<=3 and npanels > 0:
+		nr, nc = 1, npanels
+	elif npanels==4:
+		nr, nc = 2, 2 
+	elif npanels==5 or npanels==6:
+		nr, nc = 2, 3
+	elif npanels==7 or npanels==8:
+		nr, nc = 2, 4
+	elif npanels==9:
+		nr, nc = 3 
+	else:
+		print('npanels restricted to between 1 and 9, please choose something in this range')
+		nr, nc = None, None
+
+	return nr, nc
+
+# def plot_custom_multiband_frame(obj, resids_plot, models_plot, panels=['data0','model0', 'residual0','model1', 'residual1','residual2'], \
+# 							zoomlims=None, ndeg=None, \
+# 							fourier_bkg=None, bcib_bkg=None, sz=None, frame_dir_path=None,\
+# 							smooth_fac=4, minpct=5, maxpct=95):
+
+# 	""" 
+# 	This is the primary function for plotting combinations of the data and model during run time. Seeing the model an residuals, for example, 
+# 	can be useful in troubleshooting bugs. 
+
+# 	This is an in place operation, with an option to save intermediate frames.
+
+# 	Notes: 
+# 		- Might integrate this more with the model class so not as cumbersome.
+# 		- generalize "sz" to be any of the templates.
+# 		- Include details of panel name convention.
 
 
-def plot_custom_multiband_frame(obj, resids, models, panels=['data0','model0', 'residual0','model1', 'residual1','residual2'], \
-							zoomlims=None, ndeg=None, \
-							fourier_bkg=None, bcib_bkg=None, sz=None, frame_dir_path=None,\
-							smooth_fac=4, minpct=5, maxpct=95):
-
-	""" 
-	This is the primary function for plotting combinations of the data and model during run time. Seeing the model an residuals, for example, 
-	can be useful in troubleshooting bugs. 
-
-	This is an in place operation, with an option to save intermediate frames.
-
-	Notes: 
-		- Might integrate this more with the model class so not as cumbersome.
-		- generalize "sz" to be any of the templates.
-		- Include details of panel name convention.
-
-
-	Parameters
-	----------
+# 	Parameters
+# 	----------
 	
-	obj : 
-	resids : 
-	models : 
-	panels : 'list' of 'strings'. Specifies the panels which are made
-		Default is ['data0', 'model0', 'residual0','model1', 'residual1','residual2'].
-	zoomlims : 'list' of 'list' of 'ints'. optional zoom in limits for maps.
-		Default is None.
-	ndeg : 
-	fourier_bkg : 
-	bcib_bkg : 
-		Default is None.
-	frame_dir_path : 'str'.
-		Default is None.
-	smooth_fac : 
-	minpct : 'float'. Minimum percentile in colorbar stretch.
-		Default is 5.
-	maxpct : 'float'. Maximum percentile in colorbar stretch.
-		Default is 95.
+# 	obj : 
+# 	resids : 
+# 	models : 
+# 	panels : 'list' of 'strings'. Specifies the panels which are made
+# 		Default is ['data0', 'model0', 'residual0','model1', 'residual1','residual2'].
+# 	zoomlims : 'list' of 'list' of 'ints'. optional zoom in limits for maps.
+# 		Default is None.
+# 	ndeg : 
+# 	fourier_bkg : 
+# 	bcib_bkg : 
+# 		Default is None.
+# 	frame_dir_path : 'str'.
+# 		Default is None.
+# 	smooth_fac : 
+# 	minpct : 'float'. Minimum percentile in colorbar stretch.
+# 		Default is 5.
+# 	maxpct : 'float'. Maximum percentile in colorbar stretch.
+# 		Default is 95.
 	
 
-	Returns
-	-------
+# 	Returns
+# 	-------
 
-	"""
+# 	"""
 	
+# 	npanels = len(panels)
 
-	plt.gcf().clear()
-	plt.figure(1, figsize=(15, 10))
-	plt.clf()
+# 	nr, nc = retr_subplot_shape(npanels)
 
-	scatter_sizefac = 300
+# 	matplotlib_backend = matplotlib.get_backend()
 
-	for i in range(6):
+# 	if matplotlib_backend=='TkAgg':
+# 		plt.gcf().clear()
+# 	plt.figure(1, figsize=(15, 10))
 
-		plt.subplot(2,3,i+1)
+# 	if matplotlib_backend=='TkAgg':
 
-		band_idx = int(panels[i][-1])
+# 		plt.clf()
 
-		if 'data' in panels[i]:
+# 	scatter_sizefac = 300
 
-			title = 'Data'
-			if 'minusptsrc' in panels[i] and fourier_bkg is not None:
-				plt.imshow(resids[band_idx]+fourier_bkg[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(resids[band_idx]+fourier_bkg[band_idx], minpct), vmax=np.percentile(resids[band_idx]+fourier_bkg[band_idx], maxpct))
-			elif 'minusfbkg' in panels[i] and fourier_bkg is not None:
-				plt.imshow(obj.dat.data_array[band_idx]-fourier_bkg[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(obj.dat.data_array[band_idx]-fourier_bkg[band_idx], minpct), vmax=np.percentile(obj.dat.data_array[band_idx]-fourier_bkg[band_idx], maxpct))
-			else:				
-				plt.imshow(obj.dat.data_array[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(obj.dat.data_array[band_idx], minpct), vmax=np.percentile(obj.dat.data_array[band_idx], maxpct))
-			if band_idx > 0:
-				xp, yp = obj.dat.fast_astrom.transform_q(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], band_idx-1)
-				plt.scatter(xp, yp, marker='x', s=obj.stars[obj._F+1, 0:obj.n]*scatter_sizefac, color='r')
-			else:
-				plt.scatter(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], marker='x', s=obj.stars[obj._F, 0:obj.n]*scatter_sizefac, color='r', alpha=0.8)
+# 	for panelidx in range(npanels):
 
-		elif 'model' in panels[i]:
-			title= 'Model'
-			plt.imshow(models[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(models[band_idx], minpct), vmax=np.percentile(models[band_idx], maxpct))
+# 		# plt.subplot(2,3,i+1)
 
-		elif 'injected_diffuse_comp' in panels[i]:
-			title = 'Injected cirrus'
-			plt.imshow(obj.dat.injected_diffuse_comp[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(obj.dat.injected_diffuse_comp[band_idx], minpct), vmax=np.percentile(obj.dat.injected_diffuse_comp[band_idx], maxpct))
+# 		plt.subplot(nr, nc, panelidx+1)
+# 		band_idx = int(panels[panelidx][-1])
+
+# 		if 'data' in panels[panelidx]:
+
+# 			title = 'Data'
+# 			if 'minusptsrc' in panels[panelidx] and fourier_bkg is not None:
+# 				plt.imshow(resids[band_idx]+fourier_bkg[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(resids[band_idx]+fourier_bkg[band_idx], minpct), vmax=np.percentile(resids[band_idx]+fourier_bkg[band_idx], maxpct))
+# 			elif 'minusfbkg' in panels[panelidx] and fourier_bkg is not None:
+# 				plt.imshow(obj.dat.data_array[band_idx]-fourier_bkg[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(obj.dat.data_array[band_idx]-fourier_bkg[band_idx], minpct), vmax=np.percentile(obj.dat.data_array[band_idx]-fourier_bkg[band_idx], maxpct))
+# 			else:
+# 				dat_copy = obj.dat.data_array[band_idx].copy()			
+# 				plt.imshow(dat_copy, origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(dat_copy, minpct), vmax=np.percentile(dat_copy, maxpct))
+# 			plt.colorbar(fraction=0.046, pad=0.04)
+
+# 			if band_idx > 0:
+# 				xp, yp = obj.dat.fast_astrom.transform_q(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], band_idx-1)
+# 				plt.scatter(xp, yp, marker='x', s=obj.stars[obj._F+1, 0:obj.n]*scatter_sizefac, color='r')
+# 			else:
+# 				plt.scatter(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], marker='x', s=obj.stars[obj._F, 0:obj.n]*scatter_sizefac, color='r', alpha=0.8)
+
+# 		elif 'model' in panels[panelidx]:
+# 			title= 'Model'
+# 			plt.imshow(models_plot[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(models_plot[band_idx], minpct), vmax=np.percentile(models_plot[band_idx], maxpct))
+# 			plt.colorbar(fraction=0.046, pad=0.04)
+
+# 		elif 'injected_diffuse_comp' in panels[panelidx]:
+# 			title = 'Injected cirrus'
+# 			plt.imshow(obj.dat.injected_diffuse_comp[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(obj.dat.injected_diffuse_comp[band_idx], minpct), vmax=np.percentile(obj.dat.injected_diffuse_comp[band_idx], maxpct))
 		
 
-		elif 'fourier_bkg' in panels[i]:
-			title='Fourier components'
-			fbkg = fourier_bkg[band_idx]
-			fbkg[obj.dat.weights[band_idx]==0] = 0.
+# 		elif 'fourier_bkg' in panels[panelidx]:
+# 			title='Fourier components'
+# 			fbkg = fourier_bkg[band_idx]
+# 			fbkg[obj.dat.weights[band_idx]==0] = 0.
 
-			plt.imshow(fbkg, origin='lower', interpolation='none', cmap='Greys', vmin = np.percentile(fbkg , minpct), vmax=np.percentile(fbkg, maxpct))
+# 			plt.imshow(fbkg, origin='lower', interpolation='none', cmap='Greys', vmin = np.percentile(fbkg , minpct), vmax=np.percentile(fbkg, maxpct))
 		
 
-		# elif 'bcib' in panels[i]:
-		# 	title = 'Binned CIB'
-		# 	bcib = bcib_bkg[band_idx]
-		# 	bcib[obj.dat.weights[band_idx]==0] = 0.
-
-		# 	plt.imshow(bcib, origin='lower', interpolation='none', cmap='Greys', vmin = np.percentile(bcib, minpct), vmax=np.percentile(bcib, maxpct))
+# 		# elif 'bcib' in panels[i]:
+# 		# 	title = 'Binned CIB'
+# 		# 	bcib = bcib_bkg[band_idx]
+# 		# 	bcib[obj.dat.weights[band_idx]==0] = 0.
+# 		# 	plt.imshow(bcib, origin='lower', interpolation='none', cmap='Greys', vmin = np.percentile(bcib, minpct), vmax=np.percentile(bcib, maxpct))
 		
 
-		elif 'residual' in panels[i]:
-			title= 'Residual'
-			if obj.gdat.weighted_residual:
-				plt.imshow(resids[band_idx]*np.sqrt(obj.dat.weights[band_idx]), origin='lower', interpolation='none', cmap='Greys', vmin=-5, vmax=5)
-			else:
-				plt.imshow(resids[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin = np.percentile(resids[band_idx][obj.dat.weights[band_idx] != 0.], minpct), vmax=np.percentile(resids[band_idx][obj.dat.weights[band_idx] != 0.], maxpct))
+# 		elif 'residual' in panels[panelidx]:
+# 			title= 'Residual'
+# 			weights_copy = obj.dat.weights[band_idx].copy()
+# 			if obj.gdat.weighted_residual:
+# 				plt.imshow(resids_plot[band_idx]*np.sqrt(weights_copy), origin='lower', interpolation='none', cmap='Greys', vmin=-5, vmax=5)
+# 			else:
+# 				plt.imshow(resids_plot[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin = np.percentile(resids_plot[band_idx][weights_copy != 0.], minpct), vmax=np.percentile(resids_plot[band_idx][weights_copy != 0.], maxpct))
+# 			plt.colorbar(fraction=0.046, pad=0.04)
 
-			if band_idx > 0:
-				xp, yp = obj.dat.fast_astrom.transform_q(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], band_idx-1)
-				plt.scatter(xp, yp, marker='x', s=obj.stars[obj._F+1, 0:obj.n]*scatter_sizefac, color='r')
-			else:
-				plt.scatter(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], marker='x', s=obj.stars[obj._F, 0:obj.n]*scatter_sizefac, color='r', alpha=0.8)
+# 			# if band_idx > 0:
+# 			# 	xp, yp = obj.dat.fast_astrom.transform_q(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], band_idx-1)
+# 			# 	plt.scatter(xp, yp, marker='x', s=obj.stars[obj._F+1, 0:obj.n]*scatter_sizefac, color='r')
+# 			# else:
+# 			# 	plt.scatter(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], marker='x', s=obj.stars[obj._F, 0:obj.n]*scatter_sizefac, color='r', alpha=0.8)
 	
 
-		elif 'sz' in panels[i]:
+# 		elif 'sz' in panels[panelidx]:
 
-			title = 'SZ'
+# 			title = 'SZ'
 
-			plt.imshow(sz[band_idx], origin='lower', interpolation='none', cmap='Greys')
+# 			plt.imshow(sz[band_idx], origin='lower', interpolation='none', cmap='Greys')
+# 			plt.colorbar(fraction=0.046, pad=0.04)
 
-			if band_idx > 0:
-				xp, yp = obj.dat.fast_astrom.transform_q(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], band_idx-1)
-				plt.scatter(xp, yp, marker='x', s=obj.stars[obj._F+1, 0:obj.n]*100, color='r')
-			else:
-				plt.scatter(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], marker='x', s=obj.stars[obj._F, 0:obj.n]*scatter_sizefac, color='r')	
-
-
-		plt.colorbar(fraction=0.046, pad=0.04)
-		title += ', band '+str(band_idx)
-		if 'zoom' in panels[i]:
-			title += ' (zoomed in)'
-			plt.xlim(zoomlims[band_idx][0])
-			plt.ylim(zoomlims[band_idx][1])
-		else:           
-			plt.xlim(-0.5, obj.imszs[band_idx][0]-0.5)
-			plt.ylim(-0.5, obj.imszs[band_idx][1]-0.5)
-		plt.title(title, fontsize=18)		
+# 			if band_idx > 0:
+# 				xp, yp = obj.dat.fast_astrom.transform_q(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], band_idx-1)
+# 				plt.scatter(xp, yp, marker='x', s=obj.stars[obj._F+1, 0:obj.n]*100, color='r')
+# 			else:
+# 				plt.scatter(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], marker='x', s=obj.stars[obj._F, 0:obj.n]*scatter_sizefac, color='r')	
 
 
-	if frame_dir_path is not None:
-		plt.savefig(frame_dir_path, bbox_inches='tight', dpi=200)
-	plt.draw()
-	plt.pause(1e-5)
+# 		# plt.colorbar(fraction=0.046, pad=0.04)
+# 		title += ', band '+str(band_idx)
+# 		if 'zoom' in panels[panelidx]:
+# 			title += ' (zoomed in)'
+# 			plt.xlim(zoomlims[band_idx][0])
+# 			plt.ylim(zoomlims[band_idx][1])
+# 		else:           
+# 			plt.xlim(-0.5, obj.imszs[band_idx][0]-0.5)
+# 			plt.ylim(-0.5, obj.imszs[band_idx][1]-0.5)
+# 		plt.title(title, fontsize=18)		
+
+
+# 	if frame_dir_path is not None:
+# 		plt.savefig(frame_dir_path, bbox_inches='tight', dpi=200)
+
+# 	if matplotlib_backend=='TkAgg':
+
+# 		plt.draw()
+# 		plt.pause(1e-5)
+# 	else:
+# 		plt.show()
+
+def plot_custom_multiband_frame_temp(resids_plot, models_plot, data_plot, weights_plot, panels=['data0','model0', 'residual0','model1', 'residual1','residual2'], \
+								zoomlims=None, ndeg=None, fourier_bkg=None, bcib_bkg=None, sz=None, frame_dir_path=None,\
+								smooth_fac=4, minpct=5, maxpct=95):
+
+		""" 
+		This is the primary function for plotting combinations of the data and model during run time. Seeing the model an residuals, for example, 
+		can be useful in troubleshooting bugs. 
+
+		This is an in place operation, with an option to save intermediate frames.
+
+		Notes: 
+			- Might integrate this more with the model class so not as cumbersome.
+			- generalize "sz" to be any of the templates.
+			- Include details of panel name convention.
+
+
+		Parameters
+		----------
+		
+		obj : 
+		resids : 
+		models : 
+		panels : 'list' of 'strings'. Specifies the panels which are made
+			Default is ['data0', 'model0', 'residual0','model1', 'residual1','residual2'].
+		zoomlims : 'list' of 'list' of 'ints'. optional zoom in limits for maps.
+			Default is None.
+		ndeg : 
+		fourier_bkg : 
+		bcib_bkg : 
+			Default is None.
+		frame_dir_path : 'str'.
+			Default is None.
+		smooth_fac : 
+		minpct : 'float'. Minimum percentile in colorbar stretch.
+			Default is 5.
+		maxpct : 'float'. Maximum percentile in colorbar stretch.
+			Default is 95.
+		
+
+		Returns
+		-------
+
+		"""
+		
+		npanels = len(panels)
+
+		nr, nc = retr_subplot_shape(npanels)
+
+		matplotlib_backend = matplotlib.get_backend()
+
+		if matplotlib_backend=='TkAgg':
+			plt.gcf().clear()
+		plt.figure(1, figsize=(15, 10))
+
+		if matplotlib_backend=='TkAgg':
+
+			plt.clf()
+
+		scatter_sizefac = 300
+
+		for panelidx in range(npanels):
+
+			# plt.subplot(2,3,i+1)
+
+			plt.subplot(nr, nc, panelidx+1)
+			band_idx = int(panels[panelidx][-1])
+
+			if 'data' in panels[panelidx]:
+
+				title = 'Data'
+				if 'minusptsrc' in panels[panelidx] and fourier_bkg is not None:
+					plt.imshow(resids[band_idx]+fourier_bkg[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(resids[band_idx]+fourier_bkg[band_idx], minpct), vmax=np.percentile(resids[band_idx]+fourier_bkg[band_idx], maxpct))
+				elif 'minusfbkg' in panels[panelidx] and fourier_bkg is not None:
+					plt.imshow(data_plot[band_idx]-fourier_bkg[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(data_plot[band_idx]-fourier_bkg[band_idx], minpct), vmax=np.percentile(data_plot[band_idx]-fourier_bkg[band_idx], maxpct))
+				else:
+					# dat_copy = self.dat.data_array[band_idx].copy()			
+					plt.imshow(data_plot[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(data_plot[band_idx], minpct), vmax=np.percentile(data_plot[band_idx], maxpct))
+				plt.colorbar(fraction=0.046, pad=0.04)
+
+				# if band_idx > 0:
+				# 	xp, yp = self.dat.fast_astrom.transform_q(self.stars[self._X, 0:self.n], self.stars[self._Y, 0:self.n], band_idx-1)
+				# 	plt.scatter(xp, yp, marker='x', s=self.stars[self._F+1, 0:self.n]*scatter_sizefac, color='r')
+				# else:
+				# 	plt.scatter(self.stars[self._X, 0:self.n], self.stars[self._Y, 0:self.n], marker='x', s=self.stars[self._F, 0:self.n]*scatter_sizefac, color='r', alpha=0.8)
+
+			elif 'model' in panels[panelidx]:
+				title= 'Model'
+				plt.imshow(models_plot[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(models_plot[band_idx], minpct), vmax=np.percentile(models_plot[band_idx], maxpct))
+				plt.colorbar(fraction=0.046, pad=0.04)
+
+			# elif 'injected_diffuse_comp' in panels[panelidx]:
+			# 	title = 'Injected cirrus'
+			# 	plt.imshow(self.dat.injected_diffuse_comp[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin=np.percentile(self.dat.injected_diffuse_comp[band_idx], minpct), vmax=np.percentile(self.dat.injected_diffuse_comp[band_idx], maxpct))
+			
+
+			elif 'fourier_bkg' in panels[panelidx]:
+				title='Fourier components'
+				fbkg = fourier_bkg[band_idx]
+				fbkg[weights_plot[band_idx]==0] = 0.
+
+				plt.imshow(fbkg, origin='lower', interpolation='none', cmap='Greys', vmin = np.percentile(fbkg , minpct), vmax=np.percentile(fbkg, maxpct))
+			
+
+			# elif 'bcib' in panels[i]:
+			# 	title = 'Binned CIB'
+			# 	bcib = bcib_bkg[band_idx]
+			# 	bcib[obj.dat.weights[band_idx]==0] = 0.
+			# 	plt.imshow(bcib, origin='lower', interpolation='none', cmap='Greys', vmin = np.percentile(bcib, minpct), vmax=np.percentile(bcib, maxpct))
+			
+
+			elif 'residual' in panels[panelidx]:
+				title= 'Residual'
+				# weights_copy = self.dat.weights[band_idx].copy()
+				# if self.gdat.weighted_residual:
+					# plt.imshow(resids_plot[band_idx]*np.sqrt(weights_plot[band_idx]), origin='lower', interpolation='none', cmap='Greys', vmin=-5, vmax=5)
+				# else:
+				plt.imshow(resids_plot[band_idx], origin='lower', interpolation='none', cmap='Greys', vmin = np.percentile(resids_plot[band_idx][weights_plot[band_idx] != 0.], minpct), vmax=np.percentile(resids_plot[band_idx][weights_plot[band_idx] != 0.], maxpct))
+				plt.colorbar(fraction=0.046, pad=0.04)
+
+				# if band_idx > 0:
+				# 	xp, yp = obj.dat.fast_astrom.transform_q(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], band_idx-1)
+				# 	plt.scatter(xp, yp, marker='x', s=obj.stars[obj._F+1, 0:obj.n]*scatter_sizefac, color='r')
+				# else:
+				# 	plt.scatter(obj.stars[obj._X, 0:obj.n], obj.stars[obj._Y, 0:obj.n], marker='x', s=obj.stars[obj._F, 0:obj.n]*scatter_sizefac, color='r', alpha=0.8)
+		
+
+			elif 'sz' in panels[panelidx]:
+
+				title = 'SZ'
+
+				plt.imshow(sz[band_idx], origin='lower', interpolation='none', cmap='Greys')
+				plt.colorbar(fraction=0.046, pad=0.04)
+
+				# if band_idx > 0:
+				# 	xp, yp = self.dat.fast_astrom.transform_q(self.stars[self._X, 0:self.n], self.stars[self._Y, 0:self.n], band_idx-1)
+				# 	plt.scatter(xp, yp, marker='x', s=self.stars[self._F+1, 0:self.n]*100, color='r')
+				# else:
+				# 	plt.scatter(self.stars[self._X, 0:self.n], self.stars[self._Y, 0:self.n], marker='x', s=self.stars[self._F, 0:self.n]*scatter_sizefac, color='r')	
+
+
+			# plt.colorbar(fraction=0.046, pad=0.04)
+			title += ', band '+str(band_idx)
+			# if 'zoom' in panels[panelidx]:
+			# 	title += ' (zoomed in)'
+			# 	plt.xlim(zoomlims[band_idx][0])
+			# 	plt.ylim(zoomlims[band_idx][1])
+			# else:           
+			# 	plt.xlim(-0.5, self.imszs[band_idx][0]-0.5)
+			# 	plt.ylim(-0.5, self.imszs[band_idx][1]-0.5)
+			plt.title(title, fontsize=18)		
+
+
+		if frame_dir_path is not None:
+			plt.savefig(frame_dir_path, bbox_inches='tight', dpi=200)
+
+		if matplotlib_backend=='TkAgg':
+
+			plt.draw()
+			plt.pause(1e-5)
+		else:
+			plt.show()
 
 
 
@@ -625,26 +823,40 @@ def plot_fourier_coeffs_sample_chains(fourier_coeffs, show=False):
 	for i in range(fourier_coeffs.shape[1]):
 		for j in range(fourier_coeffs.shape[2]):
 			ax1.plot(xvals, fourier_coeffs[:,i,j,0], alpha=0.5, linewidth=2, color=plt.cm.jet(np.sqrt(i**2+j**2)/(np.sqrt(2)*fourier_coeffs.shape[1])))
+			ax2.plot(xvals, fourier_coeffs[:,i,j,1], alpha=0.5, linewidth=2, color=plt.cm.jet(np.sqrt(i**2+j**2)/(np.sqrt(2)*fourier_coeffs.shape[1])))
+			ax3.plot(xvals, fourier_coeffs[:,i,j,2], alpha=0.5, linewidth=2, color=plt.cm.jet(np.sqrt(i**2+j**2)/(np.sqrt(2)*fourier_coeffs.shape[1])))
+			ax4.plot(xvals, fourier_coeffs[:,i,j,3], alpha=0.5, linewidth=2, color=plt.cm.jet(np.sqrt(i**2+j**2)/(np.sqrt(2)*fourier_coeffs.shape[1])))
+
+
 	ax1.set_xlabel('Thinned (post burn-in) samples')
 	ax1.set_ylabel('$B_{ij,1}$', fontsize=18)
 
-	for i in range(fourier_coeffs.shape[1]):
-		for j in range(fourier_coeffs.shape[2]):
-			ax2.plot(xvals, fourier_coeffs[:,i,j,1], alpha=0.5, linewidth=2, color=plt.cm.jet(np.sqrt(i**2+j**2)/(np.sqrt(2)*fourier_coeffs.shape[1])))
 	ax2.set_xlabel('Thinned (post burn-in) samples')
 	ax2.set_ylabel('$B_{ij,2}$', fontsize=18)
 
-	for i in range(fourier_coeffs.shape[1]):
-		for j in range(fourier_coeffs.shape[2]):
-			ax3.plot(xvals, fourier_coeffs[:,i,j,2], alpha=0.5, linewidth=2, color=plt.cm.jet(np.sqrt(i**2+j**2)/(np.sqrt(2)*fourier_coeffs.shape[1])))
 	ax3.set_xlabel('Thinned (post burn-in) samples')
 	ax3.set_ylabel('$B_{ij,3}$', fontsize=18)
 
-	for i in range(fourier_coeffs.shape[1]):
-		for j in range(fourier_coeffs.shape[2]):
-			ax4.plot(xvals, fourier_coeffs[:,i,j,3], alpha=0.5, linewidth=2, color=plt.cm.jet(np.sqrt(i**2+j**2)/(np.sqrt(2)*fourier_coeffs.shape[1])))
 	ax4.set_xlabel('Thinned (post burn-in) samples')
 	ax4.set_ylabel('$B_{ij,4}$', fontsize=18)
+	
+	# for i in range(fourier_coeffs.shape[1]):
+	# 	for j in range(fourier_coeffs.shape[2]):
+	# 		ax2.plot(xvals, fourier_coeffs[:,i,j,1], alpha=0.5, linewidth=2, color=plt.cm.jet(np.sqrt(i**2+j**2)/(np.sqrt(2)*fourier_coeffs.shape[1])))
+	# ax2.set_xlabel('Thinned (post burn-in) samples')
+	# ax2.set_ylabel('$B_{ij,2}$', fontsize=18)
+
+	# for i in range(fourier_coeffs.shape[1]):
+	# 	for j in range(fourier_coeffs.shape[2]):
+	# 		ax3.plot(xvals, fourier_coeffs[:,i,j,2], alpha=0.5, linewidth=2, color=plt.cm.jet(np.sqrt(i**2+j**2)/(np.sqrt(2)*fourier_coeffs.shape[1])))
+	# ax3.set_xlabel('Thinned (post burn-in) samples')
+	# ax3.set_ylabel('$B_{ij,3}$', fontsize=18)
+
+	# for i in range(fourier_coeffs.shape[1]):
+	# 	for j in range(fourier_coeffs.shape[2]):
+	# 		ax4.plot(xvals, fourier_coeffs[:,i,j,3], alpha=0.5, linewidth=2, color=plt.cm.jet(np.sqrt(i**2+j**2)/(np.sqrt(2)*fourier_coeffs.shape[1])))
+	# ax4.set_xlabel('Thinned (post burn-in) samples')
+	# ax4.set_ylabel('$B_{ij,4}$', fontsize=18)
 
 	f.colorbar(colormap, orientation='vertical', ax=ax1).set_label('$|k|$', fontsize=14)
 	f.colorbar(colormap, orientation='vertical', ax=ax2).set_label('$|k|$', fontsize=14)
@@ -797,7 +1009,7 @@ def plot_posterior_flux_dist(logSv, raw_number_counts, band='250 micron', title=
 
 	plt.errorbar(logSv+3, mean_number_cts, yerr=np.array([np.abs(mean_number_cts-lower), np.abs(upper - mean_number_cts)]),fmt='.', label='Posterior')
 	plt.legend()
-	plt.yscale('log', nonposy='clip')
+	plt.yscale('log')
 
 	plt.xlabel('$S_{\\nu}$ - ' + str(band) + ' [mJy]')
 	plt.ylim(5e-1, 5e2)
@@ -1141,7 +1353,11 @@ def grab_atcr(timestr, paramstr='template_amplitudes', band=0, result_dir=None, 
 		return f
 
 
-def plot_single_map(image, show=True, title=None, return_fig=False, lopct=None, hipct=None, cmap=None):
+	plot_single_map(template, title=template_name, save_bool=self.gdat.save_input_plots,\
+				 save_dir=self.gdat.input_map_dir, filename='template_'+str(template_name)+'_band'+str(band)+'.'+self.gdat.fig_filetype)
+
+def plot_single_map(image, show=True, title=None, return_fig=False, lopct=None, hipct=None, cmap=None, \
+					save_bool=False, save_dir=None, filename=None):
 
 	f = plt.figure()
 	if title is not None:
@@ -1156,12 +1372,16 @@ def plot_single_map(image, show=True, title=None, return_fig=False, lopct=None, 
 	plt.colorbar()
 	if show:
 		plt.show()
+
+	if save_bool:
+		f.savefig(save_dir+filename, bbox_inches='tight')
+
 	if return_fig:
 		return f
 
 
 def plot_multipanel(image_list, str_list, xlabel='x', ylabel='y', return_fig = True, show=True, lopct=None, hipct=None, figsize=None, cmap=None, cbar_label=None, \
-	suptitle=None):
+	suptitle=None, save_bool=False, save_dir=None, filename=None):
 
 
 	if lopct is not None:
@@ -1197,9 +1417,9 @@ def plot_multipanel(image_list, str_list, xlabel='x', ylabel='y', return_fig = T
 
 
 		vmin, vmax = None, None
-		if lopct is not None:
+		if lopct[i] is not None:
 			vmin = np.nanpercentile(image, lopct[i])
-		if hipct is not None:
+		if hipct[i] is not None:
 			vmax = np.nanpercentile(image, hipct[i])
 
 		plt.subplot(nx, ny, i+1)
@@ -1216,6 +1436,9 @@ def plot_multipanel(image_list, str_list, xlabel='x', ylabel='y', return_fig = T
 	plt.tight_layout()
 	if show:
 		plt.show()
+
+	if save_bool:
+		f.savefig(save_dir+filename, bbox_inches='tight')
 
 	if return_fig:
 		return f

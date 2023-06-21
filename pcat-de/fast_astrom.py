@@ -139,7 +139,6 @@ class wcs_astrometry():
             try:
                 big_dim = np.maximum(head['NAXIS1'], head['NAXIS2'])
             except:
-                print('didnt work upping it')
                 hdu_idx += 1
                 head = f[hdu_idx].header
                 big_dim = np.maximum(head['NAXIS1'], head['NAXIS2'])
@@ -154,7 +153,6 @@ class wcs_astrometry():
                 hdu_idx += 1
                 head = f[hdu_idx].header
                 dim = (head['NAXIS1'], head['NAXIS2'])
-        print('dim:', dim)
         self.dims.append(dim)
         wcs_obj = wcs.WCS(head)
         self.wcs_objs.append(wcs_obj)

@@ -55,16 +55,16 @@ openblas=False
 base_path = config.base_path
 result_basedir = config.result_basedir
 
-data_path = None
+data_fpaths = None
 # the tail name can be configured when reading files from a specific dataset if the name space changes.
 # the default tail name should be for PSW, as this is picked up in a later routine and modified to the appropriate band.
+dataname = None
 tail_name = None
 # file_path can be provided if only one image is desired with a specific path not consistent with the larger directory structure
 file_path = None
 
 im_fpath = None
 err_fpath = None
-dataname = None
 # filepath for previous catalog if using as an initial state. loads in .npy files
 load_state_timestr = None 
 # set flag to True if you want posterior plots/catalog samples/etc from run saved
@@ -96,6 +96,7 @@ psf_fwhms = None
 
 # TBD
 psf_postage_stamps = None
+
 nbin = 5 # upsamples template by factor of nbin
 
 # if true catalog provided, passes on to posterior analysis
@@ -124,11 +125,23 @@ nsamp = 1000
 # factor by which the chain is thinned
 nloop = 1000
 
-print_movetypes = dict({'movestar':'P *','birth_death':'BD *','merge_split':'MS *','bkg':'BKG', 'template':'TEMPLATE','fourier_comp':'FC','bincib':'BINCIB'})
+
+
+all_movetypes = ['movestar', 'birth_death', 'merge_split', 'bkg', 'template', 'fc'] # bincib
+print_movetypes = dict({'movestar':'P *','birth_death':'BD *','merge_split':'MS *','bkg':'BKG', 'template':'TEMPLATE','fc':'FC','bincib':'BINCIB'})
+
+# temporary debug
+# moveweight_byprop = dict({'movestar':80., 'birth_death':0., 'merge_split':0., 'bkg':10., 'template':40., 'fc':40.})
 
 moveweight_byprop = dict({'movestar':80., 'birth_death':60., 'merge_split':60., 'bkg':10., 'template':40., 'fc':40.})
 # number of thinned samples before proposals of various types are included in the fit. The default is for these to all be zero.
 sample_delay_byprop = dict({'movestar':0, 'birth_death':0, 'merge_split':0, 'bkg':0, 'template':0, 'fc':0}) 
+
+
+# if using point sources these three parameters should be left on True
+movestar = True
+birth_death = True 
+merge_split = True
 
 # scalar factor in regularization prior, scales dlogL penalty when adding/subtracting a source
 alph = 1.0
@@ -139,9 +152,9 @@ kickrange = 1.0
 # used in subregion model evaluation
 margin = 10
 # maximum number of sources allowed in the code, might change depending on the image
-max_nsrc = 2000
+max_nsrc = 1000
 # nominal number of sources expected in a given image, helps set sample step sizes during MCMC
-nominal_nsrc = 1000
+nominal_nsrc = None
 # splits up image into subregions to do proposals within
 nregion = 5
 # used when splitting sources and determining colors of resulting objects
@@ -179,15 +192,15 @@ bkg_level = None
 # is functionally the same
 mean_offsets = None
 # boolean determining whether to use background proposals
-float_background = False
+float_background = True
 # bkg_sig_fac scales the width of the background proposal distribution
-bkg_sig_fac = 5.
+bkg_sig_fac = 10.
 # if set to True, includes Gaussian prior on background amplitude with mean bkg_mus[bkg_idx] and scale bkg_prior_sig. this is not used in practice but could be useful
 dc_bkg_prior = False
 # background amplitude Gaussian prior mean [in Jy/beam]
 bkg_prior_mus = None
 # background amplitude Gaussian prior width [in Jy/beam]
-bkg_prior_sig = 0.01
+bkg_prior_sig = None
 
 # ---------------------------------- TEMPLATE PARAMS ----------------------------------------
 
@@ -208,7 +221,7 @@ delta_cp_bool = False
 
 # inject_diffuse_comp = False
 # diffuse_comp_path = None
-diffuse_comp_fpaths = None
+# diffuse_comp_fpaths = None
 
 # coupled proposals between template describing profile (e.g., SZ surface brightness profile) and point sources
 # coupled_profile_temp_prop = False
@@ -235,10 +248,10 @@ fc_rel_amps = None
 
 # for a given proposal, this is the probability that the fourier coefficients are perturbed rather than 
 # the relative amplitude of the coefficients across bands
-dfc_prob = 0.5
+dfc_prob = 1.
 
 # this specifies the order of the fourier expansion. the number fourier components that are fit for is equal to 4 x fourier_order**2
-fourier_order = 5
+fourier_order = 10
 
 # this is for perturbing the relative amplitudes of a fixed Fourier comp model across bands
 fourier_amp_sig = 0.0005
@@ -251,16 +264,16 @@ fc_amp_sig = None
 
 bkg_moore_penrose_inv = False
 
-ridge_fac = 10.
+ridge_fac = None
 
 # if specified, ridge factor is proportional to wavenumber when added to diagonal model covariance matrix, effectively a power spectrum prior on diffuse component
 ridge_fac_alpha = 1.3
 
 # number of times to apply FC marg during burn in
-n_marg_updates = 10
+n_marg_updates = 50
 
 # number of thinned samples between each marginalization step
-fc_marg_period = 5
+fc_marg_period = 20
 
 # if True, PCAT couples Fourier component proposals with change in point source fluxes
 coupled_fc_prop = False
@@ -275,7 +288,9 @@ visual = False
 # used for visual mode
 weighted_residual = True
 # panel list controls what is shown in six panels plotted by PCAT intermittently when visual=True  
-panel_list = ['data0', 'model0', 'residual0', 'data_zoom0', 'dNdS0', 'residual_zoom0']
+# panel_list = ['data0', 'model0', 'residual0', 'data_zoom0', 'dNdS0', 'residual_zoom0']
+panel_list = ['data0', 'model0', 'residual0']
+
 # plots visual frames every "plot_sample_period" thinned samples
 plot_sample_period = 1
 # can have fully deterministic trials by specifying a random initial seed 
@@ -297,6 +312,9 @@ timestr_list_file = None
 print_log=False
 # this parameter can be set to true when validating the input data products are correct
 show_input_maps=False
+# save input maps to folder
+save_input_plots=True
+fig_filetype = 'pdf'
 
 n_frames = 0
 

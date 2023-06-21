@@ -206,30 +206,28 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 	if temp_mock_amps_dict is None:
 		temp_mock_amps_dict = dict({'S':0.4, 'M': 0.2, 'L': 0.8}) # MJy/sr, this was to test how adding a signal at 250 um (like dust) would affect the fit if not modeled
 
-	if lam_dict is None:
-		lam_dict = config.lam_dict
-		# lam_dict = dict({0:250, 1:350, 2:500}) # microns
-	if pixel_sizes is None:
-		pixel_sizes = config.pixel_sizes
-		# pixel_sizes = dict({'S':6, 'M':8, 'L':12}) # arcseconds
 	
 	if gdat is None:
-		gdat, filepath, result_path = load_param_dict(timestr)
-
+		# gdat, filepath, result_path = load_param_dict(timestr=timestr)
+		gdat, filepath = load_param_dict(timestr=timestr)
 		gdat.burn_in_frac = burn_in_frac
 		gdat.boolplotshow = boolplotshow
 		gdat.boolplotsave = boolplotsave
 		gdat.filepath = filepath
-		gdat.result_path = result_path
+		gdat.result_path = config.result_basedir
 		gdat.timestr = timestr
 		gdat.psf_fwhms = [3., 3., 3.]
-		# gdat.err_f_divfac = 1.
-		# gdat.round_up_or_down = 'up'
 
 	else:
-		gdat.filepath = gdat.result_path + gdat.timestr
+		gdat.filepath = config.result_basedir+'/'+gdat.timestr
+		gdat.result_path = config.result_basedir
 
-
+	if lam_dict is None:
+		lam_dict = gdat.lam_dict
+		# lam_dict = dict({0:250, 1:350, 2:500}) # microns
+	if pixel_sizes is None:
+		pixel_sizes = gdat.pixsize_dict
+		# pixel_sizes = dict({'S':6, 'M':8, 'L':12}) # arcseconds
 	# if truth_catalog is None:
 		# if gdat.truth_catalog is not None:
 			# truth_catalog = gdat.truth_catalog
@@ -249,7 +247,7 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 
 	if condensed_catalog_plots:
 
-		condensed_cat_dir = add_directory(gdat.filepath+'/condensed_catalog')
+		condensed_cat_dir = add_directory(gdat.result_path+'/'+timestr+'/condensed_catalog')
 
 		if generate_condensed_cat:
 			print('Generating condensed catalog from last '+str(gdat.n_condensed_samp)+' samples of catalog ensemble..')
@@ -275,10 +273,10 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 
 	gdat.show_input_maps=False
 
-	dat = pcat_data(gdat.auto_resize, nregion=gdat.nregion)
+	dat = pcat_data(gdat, nregion=gdat.nregion)
 	dat.load_in_data(gdat)
 
-	chain = np.load(gdat.filepath+'/chain.npz')
+	chain = np.load(gdat.result_path+'/'+gdat.timestr+'/chain.npz')
 
 	# sb_conversion_dict = dict({'S': 86.29e-4, 'M':16.65e-3, 'L':34.52e-3})
 
@@ -303,8 +301,8 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 		if gdat.n_templates > 0:
 			template_amplitudes = chain['template_amplitudes']
 
-	if gdat.float_cib_templates:
-		binned_cib_coeffs = chain['binned_cib_coeffs']
+	# if gdat.float_cib_templates:
+		# binned_cib_coeffs = chain['binned_cib_coeffs']
 
 	if gdat.float_fourier_comps: # fourier comps
 		fourier_coeffs = chain['fourier_coeffs']
@@ -321,11 +319,11 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 			smoothed_resid = gaussian_filter(median_resid, sigma=3)
 
 			if b==0:
-				resid_map_dir = add_directory(gdat.filepath+'/residual_maps')
-				onept_dir = add_directory(gdat.filepath+'/residual_1pt')
+				resid_map_dir = add_directory(gdat.result_path+'/'+gdat.timestr+'/residual_maps')
+				onept_dir = add_directory(gdat.result_path+'/'+gdat.timestr+'/residual_1pt')
 
 			if sb_unit=='MJy/sr':
-				fd_conv_fac = config.sb_conversion_dict[gdat.band_dict[bands[b]]]
+				fd_conv_fac = gdat.sb_conversion_dict[gdat.band_dict[bands[b]]]
 				print('fd conv fac is ', fd_conv_fac)
 			
 
@@ -340,7 +338,7 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 
 			noise_mod = dat.uncertainty_maps[b]
 
-			f_1pt_resid = plot_residual_1pt_function(median_resid_rav, mode='median', noise_model=noise_mod, band=title_band_dict[bands[b]], show=False, convert_to_MJy_sr_fac=None)
+			f_1pt_resid = plot_residual_1pt_function(median_resid_rav, mode='median', band=title_band_dict[bands[b]], show=False, convert_to_MJy_sr_fac=None)
 			f_1pt_resid.savefig(onept_dir +'/median_residual_1pt_function_band'+str(b)+'.'+plttype, bbox_inches='tight', dpi=dpi)
 
 			plt.close()	
@@ -351,7 +349,7 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 		sample_number = np.arange(burn_in, gdat.nsamp)
 		full_sample = range(gdat.nsamp)
 
-		chi2_dir = add_directory(gdat.filepath+'/chi2')
+		chi2_dir = add_directory(gdat.result_path+'/'+gdat.timestr+'/chi2')
 
 
 		ndof_list = [dat.fracs[b]*dat.uncertainty_maps[b].shape[0]*dat.uncertainty_maps[b].shape[1] for b in range(gdat.nbands)]
@@ -371,12 +369,12 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 
 	if gdat.float_background and dc_background_plots:
 
-		bkg_dir = add_directory(gdat.filepath+'/bkg')
+		bkg_dir = add_directory(gdat.result_path+'/'+gdat.timestr+'/bkg')
 
 		for b in range(gdat.nbands):
 
 			if sb_unit=='MJy/sr':
-				fd_conv_fac = config.sb_conversion_dict[gdat.band_dict[bands[b]]]
+				fd_conv_fac = gdat.sb_conversion_dict[gdat.band_dict[bands[b]]]
 				print('fd conv fac is ', fd_conv_fac)
 
 			f_bkg_chain = plot_bkg_sample_chain(bkgs[:,b], band=title_band_dict[bands[b]], show=False, convert_to_MJy_sr_fac=fd_conv_fac)
@@ -393,35 +391,35 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 
 	# ------------------------- BINNED CIB TEMPLATES --------------------
 
-	if gdat.float_cib_templates:
+	# if gdat.float_cib_templates:
 
-		bcib_dir = add_directory(gdat.filepath+'/binned_cib')
+	# 	bcib_dir = add_directory(gdat.filepath+'/binned_cib')
 
-		print('Computing binned CIB posterior..')
+	# 	print('Computing binned CIB posterior..')
 
-		dimxs = [gdat.imszs[b][0] for b in range(gdat.nbands)]
-		dimys = [gdat.imszs[b][1] for b in range(gdat.nbands)]
+	# 	dimxs = [gdat.imszs[b][0] for b in range(gdat.nbands)]
+	# 	dimys = [gdat.imszs[b][1] for b in range(gdat.nbands)]
 
-		coarse_cib_templates = generate_subregion_cib_templates(dimxs, dimys, gdat.cib_nregion, cib_rel_amps=gdat.binned_cib_relamps)
+	# 	coarse_cib_templates = generate_subregion_cib_templates(dimxs, dimys, gdat.cib_nregion, cib_rel_amps=gdat.binned_cib_relamps)
 
-		for b in range(gdat.nbands):
+	# 	for b in range(gdat.nbands):
 
-			f_bcib_median_std = plot_bcib_median_std(binned_cib_coeffs[burn_in:], coarse_cib_templates[b])
-			f_bcib_median_std.savefig(bcib_dir+'/bcib_model_median_std_band'+str(b)+'.'+plttype, bbox_inches='tight', dpi=dpi)
+	# 		f_bcib_median_std = plot_bcib_median_std(binned_cib_coeffs[burn_in:], coarse_cib_templates[b])
+	# 		f_bcib_median_std.savefig(bcib_dir+'/bcib_model_median_std_band'+str(b)+'.'+plttype, bbox_inches='tight', dpi=dpi)
 
-		f_bcib_chain = plot_bcib_sample_chains(binned_cib_coeffs[burn_in:])
-		f_bcib_chain.savefig(bcib_dir+'/bcib_sample_chains.'+plttype, bbox_inches='tight', dpi=dpi)
+	# 	f_bcib_chain = plot_bcib_sample_chains(binned_cib_coeffs[burn_in:])
+	# 	f_bcib_chain.savefig(bcib_dir+'/bcib_sample_chains.'+plttype, bbox_inches='tight', dpi=dpi)
 
 
 	# ------------------------- FOURIER COMPONENTS ----------------------
 
 	if gdat.float_fourier_comps and fourier_comp_plots:
 
-		fc_dir = add_directory(gdat.filepath+'/fourier_comps')
+		fc_dir = add_directory(gdat.result_path+'/'+gdat.timestr+'/fourier_comps')
 
 		# median and variance of fourier component model posterior
 		print('Computing Fourier component posterior..')
-		f_fc_median_std = plot_fc_median_std(fourier_coeffs[burn_in:], gdat.imszs[0], ref_img=dat.data_array[0], convert_to_MJy_sr_fac=config.sb_conversion_dict['S'], psf_fwhm=3.)
+		f_fc_median_std = plot_fc_median_std(fourier_coeffs[burn_in:], gdat.imszs[0], ref_img=dat.data_array[0], convert_to_MJy_sr_fac=gdat.sb_conversion_dict['S'], psf_fwhm=3.)
 		f_fc_median_std.savefig(fc_dir+'/fourier_comp_model_median_std.'+plttype, bbox_inches='tight', dpi=dpi)
 
 		# sample chain for fourier coeffs
@@ -434,13 +432,13 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 
 	if gdat.float_templates and template_plots:
 
-		template_dir = add_directory(gdat.filepath+'/templates')
+		template_dir = add_directory(gdat.result_path+'/'+gdat.timestr+'/templates')
 
 		for t in range(gdat.n_templates):
 			for b in range(gdat.nbands):
 
 				if sb_unit=='MJy/sr':
-					fd_conv_fac = config.sb_conversion_dict[gdat.band_dict[bands[b]]]
+					fd_conv_fac = gdat.sb_conversion_dict[gdat.band_dict[bands[b]]]
 					print('fd conv fac is ', fd_conv_fac)
 
 				if not np.isnan(gdat.template_band_idxs[t,b]):
@@ -481,7 +479,7 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 	if comp_resources_plot:
 		labels = ['Proposal', 'Likelihood', 'Implement']
 		f_comp = plot_comp_resources(timestats, gdat.nsamp, labels=labels)
-		f_comp.savefig(gdat.filepath+ '/time_resource_statistics.'+plttype, bbox_inches='tight', dpi=dpi)
+		f_comp.savefig(gdat.result_path+'/'+gdat.timestr+'/time_resource_statistics.'+plttype, bbox_inches='tight', dpi=dpi)
 		plt.close()
 
 	# ------------------------------ ACCEPTANCE FRACTION -----------------------------------------
@@ -498,10 +496,8 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 		if not gdat.float_fourier_comps:
 			skip_idxs.append(6)
 
-		print('proposal types:', proposal_types)
-		print('accept_stats is ', accept_stats)
 		f_proposal_acceptance = plot_acceptance_fractions(accept_stats, proposal_types=proposal_types, skip_idxs=skip_idxs)
-		f_proposal_acceptance.savefig(gdat.filepath+'/acceptance_fraction.'+plttype, bbox_inches='tight', dpi=dpi)
+		f_proposal_acceptance.savefig(gdat.result_path+'/'+gdat.timestr+'/acceptance_fraction.'+plttype, bbox_inches='tight', dpi=dpi)
 
 
 	# -------------------------------- ITERATE OVER BANDS -------------------------------------
@@ -509,7 +505,7 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 	nsrc_fov = []
 	color_lin_post_bins = np.linspace(0.0, 5.0, 30)
 
-	flux_color_dir = add_directory(gdat.filepath+'/fluxes_and_colors')
+	flux_color_dir = add_directory(gdat.result_path+'/'+gdat.timestr+'/fluxes_and_colors')
 
 	pairs = []
 
@@ -618,10 +614,10 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 			nsrc_fov_truth = len(truth_catalog)
 
 		f_nsrc = plot_src_number_posterior(nsrc_fov, nsrc_truth=nsrc_fov_truth, fmin=1e3*gdat.trueminf, units='mJy')
-		f_nsrc.savefig(gdat.filepath +'/posterior_histogram_nstar.'+plttype, bbox_inches='tight', dpi=dpi)
+		f_nsrc.savefig(gdat.result_path+'/'+gdat.timestr+'/posterior_histogram_nstar.'+plttype, bbox_inches='tight', dpi=dpi)
 
 		f_nsrc_trace = plot_src_number_trace(nsrc_fov)
-		f_nsrc_trace.savefig(gdat.filepath +'/nstar_traceplot.'+plttype, bbox_inches='tight', dpi=dpi)
+		f_nsrc_trace.savefig(gdat.result_path+'/'+gdat.timestr+'/nstar_traceplot.'+plttype, bbox_inches='tight', dpi=dpi)
 
 
 		nsrc_full = []
@@ -632,7 +628,7 @@ def result_plots(timestr=None, burn_in_frac=0.8, boolplotsave=True, boolplotshow
 			nsrc_full.append(len(fsrcs_full))
 
 		f_nsrc_trace_full = plot_src_number_trace(nsrc_full)
-		f_nsrc_trace_full.savefig(gdat.filepath +'/nstar_traceplot_full.'+plttype, bbox_inches='tight', dpi=dpi)
+		f_nsrc_trace_full.savefig(gdat.result_path+'/'+gdat.timestr+'/nstar_traceplot_full.'+plttype, bbox_inches='tight', dpi=dpi)
 
 		
 
