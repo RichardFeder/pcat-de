@@ -17,14 +17,15 @@ Existing applications of PCAT-DE include:
 .. toctree::
    :hidden:
    :maxdepth: 3
-
+   index
    installation
 
 
 Changelog
 ---------
-This is where updates on PCAT-DE will be posted, referencing the main PCAT-DE Github branch. The current version is **0.0.1** (1/1/2023).
+This is where updates on PCAT-DE will be posted, referencing the main PCAT-DE Github branch. The current version is **0.0.1** (1/1/2023). As such, the existing software should be treated as a beta release. Please do not hesitate to file an issue through `Github <https://github.com/RichardFeder/pcat-de/issues>`_ or to directly contact me at rfederst@caltech.edu if there appear to be any bugs in the code. 
 
+(6/21/23): The code has been consolidated and result plots are correctly made at the end of sampling. Note however that we have identified a bug in the PCAT-DE visual mode, which plots the data/model/residuals in real time as the fit converges. Until this is resolved we advise running with ``visual=False``.
 
 
 Existing work on probabilistic cataloging
@@ -45,15 +46,14 @@ This work builds on a long list of existing implementations and extensions based
 Implementation details
 ----------------------
 
-The code is structured as follows. First, the ``pcat_main()`` class is instantiated, using a combination of user-provided paths (stored in ``config.py``) and tunable hyperparameters which are specified in ``params.py``. Each time PCAT is run, a parameter file is saved in pickled and readable forms (``params.npz``, ``params_read.txt``) within the results folder.
+The code is structured as follows. First, the ``pcat_main()`` class is instantiated, using a combination of user-provided paths (stored in ``config.py``) and tunable hyperparameters which are specified in ``params.py``. Each time PCAT is run, a parameter file is saved in pickled and readable forms (``params.txt``, ``params_read.txt``) within the results folder.
 
-In practice many of the hyperparameters do not need to be modified, however adding new ones is straightforward. The existing hyperparameters can be broken down into various groups:
+In practice many of the hyperparameters do not need to be modified, however doing so is straightforward (along with adding new parameters). The existing hyperparameters can be broken down into various groups:
 
 Data configuration parameters
 +++++++++++++++++++++++++++++
 
 This includes the location of the files (can be input through data_path or combination of ``im_fpath`` and ``err_fpath``) and details of the noise model implementation. These should be the names of FITS files (with ``.fits`` extensions). The data can be fed in as either a single observed map (e.g., ``image_extnames=['SIGNAL']``), or as a sum of several maps, (e.g., ``image_extnames=[{signal_noiseless}, {noise}]``), where ``{signal_noiseless}`` and ``{noise}`` should be customized to the saved FITS image cards. Additional Gaussian noise can be added by setting  ``add_noise`` to True and either specifying a constant noise level (``scalar_noise_sigma``) or using the uncertainty map (``add_noise=True`` and ``use_uncertainty_map=True``). The details of the PSF can be specified in terms of a beam full width at half maximum (FWHM, ``psf_fwhm``) provided in pixel units (this assumes a Gaussian beam), or as a generic PSF postage stamp. When an empirical PSF estimate is available it can be fed into PCAT using the ``psf_postage_stamp`` keyword. If one wants to run PCAT on a masked version of the image, the most straightforward way to do this is to set all pixels in the uncertainty map to zero/inf/NaN. PCAT will have predicted model values for these pixels, however they are zero-weighted in the likelihood evaluation.
-
 
 
 PCAT sampler parameters/model hyperparameters
@@ -82,7 +82,7 @@ In PCAT-DE, two sets of diagnostics are included to ensure the data products are
 Examples
 --------
 
-Example scripts can be found in the repository under ``example1.py``. Some code implementing artificial star tests can be found in the script ``artificial_star_test.py``
+Example scripts can be found in the repository under ``example1.py``. Some code implementing artificial star tests can be found in the script ``artificial_star_test.py``. More detailed demos will be included in the future.
 
 Posteriors and Diagnostics
 ++++++++++++++++++++++++++
